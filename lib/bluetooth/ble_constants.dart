@@ -1,3 +1,10 @@
+/* Constants for Bluetooth
+*/
+
+// Debug mode for testing
+const bool kDebugSkipBle = true;
+
+
 class BleConstants {
   static const String deviceName = 'EndoSync';
   static const String serviceUuid = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';

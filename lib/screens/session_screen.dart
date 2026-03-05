@@ -62,6 +62,8 @@ class _SessionScreenState extends State<SessionScreen> {
 
   void _endSession() {
     _timer?.cancel();
+    if (!mounted) return;
+
     final ble = context.read<BleManager>();
     ble.sendCommand(BleCommands.allOff); // Turn off hardware at end of session
 
@@ -69,11 +71,11 @@ class _SessionScreenState extends State<SessionScreen> {
       ble.startCooldown();
     }
   
-    setState(() {
-      _sessionEnded = true;
-    });
+    setState(() => _sessionEnded = true);
+  
   
     // Navigate to EndScreen after short delay to show session ended state
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -188,6 +190,7 @@ class _SessionScreenState extends State<SessionScreen> {
   
     void _handleSafetyShutoff(String alert) {
       _timer?.cancel();
+      if (!mounted) return;
       // Show alert dialog to user
       
       String message;
@@ -238,6 +241,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   void _checkSafetyAlert() {
+    if (!mounted) return;
     final alert = context.read<BleManager>().safetyAlert;
     if (alert != null && _sessionStarted && !_sessionEnded) {
       setState(() => _sessionEnded = true); // Prevent multiple dialogs if multiple alerts come in
@@ -250,6 +254,8 @@ class _SessionScreenState extends State<SessionScreen> {
     context.read<BleManager>().removeListener(_checkSafetyAlert);
     _timer?.cancel();
     if (!_sessionEnded) {
+      // Store reference before widget deactivates
+      final ble = context.read<BleManager>();
       context.read<BleManager>().sendCommand(BleCommands.allOff);
     }
     super.dispose();  

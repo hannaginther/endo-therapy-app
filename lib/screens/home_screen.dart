@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../bluetooth/ble_manager.dart';
+import '../bluetooth/ble_constants.dart';
 import 'pain_input_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -57,6 +58,27 @@ class HomeScreen extends StatelessWidget {
               onPressed: () => ble.resetAndScan(),
               child: const Text('Try Connecting Again'),
             ),
+
+            // Debug Only
+            if (kDebugSkipBle) ...[
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text(
+                'DEBUG MODE',
+                style: TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 2),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PainInputScreen()),
+                  );
+                },
+                child: const Text('Skip BLE — Test UI Flow'),
+              ),
+            ],
           ],
         ),
       );
@@ -107,6 +129,27 @@ class HomeScreen extends StatelessWidget {
             },
             child: const Text('Log your pain to begin a session'),
           ),
+
+          // Debug only - skip BLE requirement for UI testing
+          if (kDebugSkipBle) ...[
+            const SizedBox(height: 48),
+            const Divider(),
+            const SizedBox(height: 8),
+            const Text(
+              'DEBUG MODE',
+              style: TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 2),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PainInputScreen()),
+                );
+              },
+              child: const Text('Skip BLE - Test UI Flow'),
+            )
+          ]
         ],
       ),
     );
