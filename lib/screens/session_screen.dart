@@ -101,43 +101,47 @@ class _SessionScreenState extends State<SessionScreen> {
         automaticallyImplyLeading: false, // Disable back button
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Timer display
-              Text(
-                _formatTime(_secondsRemaining),
-                style: const TextStyle(
-                  fontSize: 64, 
-                  fontWeight: FontWeight.bold,
-                  fontFeatures: [FontFeature.tabularFigures()], // Monospaced digits,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Timer display
+                Text(
+                  _formatTime(_secondsRemaining),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 64, 
+                    fontWeight: FontWeight.bold,
+                    fontFeatures: [FontFeature.tabularFigures()], // Monospaced digits,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text('remaining', style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 48),
+                const SizedBox(height: 8),
+                const Text('remaining', style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 48),
 
-              // Exercise guidance (placeholder)
-              if (_sessionStarted) _buildExerciseGuidance(),
+                // Exercise guidance (placeholder)
+                if (_sessionStarted) _buildExerciseGuidance(),
 
-              const SizedBox(height: 48),
+                const SizedBox(height: 48),
 
 
-              // Start / Stop button
-              if (!_sessionStarted)
-                ElevatedButton(
-                  onPressed: _startSession,
-                  child: const Text('Start Session'),
-                )
-              else
-                OutlinedButton(
-                  onPressed: _endSession,
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('End Session Early'),
-                ),
-            ],
+                // Start / Stop button
+                if (!_sessionStarted)
+                  ElevatedButton(
+                    onPressed: _startSession,
+                    child: const Text('Start Session'),
+                  )
+                else
+                  OutlinedButton(
+                    onPressed: _endSession,
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('End Session Early'),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -254,8 +258,6 @@ class _SessionScreenState extends State<SessionScreen> {
     context.read<BleManager>().removeListener(_checkSafetyAlert);
     _timer?.cancel();
     if (!_sessionEnded) {
-      // Store reference before widget deactivates
-      final ble = context.read<BleManager>();
       context.read<BleManager>().sendCommand(BleCommands.allOff);
     }
     super.dispose();  
