@@ -12,6 +12,11 @@ class BleManager extends ChangeNotifier {
   final List<ScanResult> _scanResults = [];
   int _retryCount = 0;
   static const int maxRetries = 3;
+  String? _safetyAlert;
+  int _sessionCount = 0;
+  bool _inCooldown = false;
+  int _cooldownSecondsRemaining = 0;
+  Timer? _cooldownTimer;
 
   BluetoothDevice? _connectedDevice;
   BluetoothCharacteristic? _txCharacteristic;
@@ -27,6 +32,10 @@ class BleManager extends ChangeNotifier {
   List<ScanResult> get scanResults => List.unmodifiable(_scanResults);
   BluetoothDevice? get connectedDevice => _connectedDevice;
   bool get deviceUnavailable => ! _isConnected && !isScanning && _retryCount >= maxRetries;
+  String? get safetyAlert => _safetyAlert;
+  int get sessionCount => _sessionCount;
+  bool get inCooldown => _inCooldown;
+  int get cooldownSecondsRemaining => _cooldownSecondsRemaining;
 
 
 // Start scanning for devices
@@ -117,8 +126,21 @@ class BleManager extends ChangeNotifier {
     await char.setNotifyValue(true);
     _dataSubscription = char.lastValueStream.listen((value) {
       if (value.isNotEmpty) {
-        _lastReceivedData = utf8.decode(value);
+        final message = utf8.decode(value);
+
+        // Check if it's a safety alert        if (message.startsWith('SAFETY:'))
+        if (message.startsWith('SAFETY:')) {
+          _safetyAlert = message;
+          debugPrint('BleManager: Received safety alert - $message');
+        } else {
+          _lastReceivedData = message;
+        }
         notifyListeners();
+
+        void clearSafetyAlert() {
+          _safetyAlert = null;
+          notifyListeners();
+        }
       }
     });
   }
@@ -145,6 +167,7 @@ class BleManager extends ChangeNotifier {
     _rxCharacteristic = null;
     _isConnected = false;
     _lastReceivedData = '';
+    _safetyAlert = 'SAFETY: BLE_LOST';
     notifyListeners();
   }
 
@@ -157,6 +180,36 @@ class BleManager extends ChangeNotifier {
   void dispose() {
     _scanSubscription?.cancel();
     _dataSubscription?.cancel();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
+
+  void incrementSessionCount() {
+    _sessionCount++;
+    notifyListeners();
+  }
+
+  void resetSessionCount() {
+    _sessionCount = 0;
+    notifyListeners();
+  }
+
+  void startCooldown() {
+    _inCooldown = true;
+    _cooldownSecondsRemaining = BleSessionLimits.cooldownDurationSeconds;
+    notifyListeners();
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_cooldownSecondsRemaining <= 0) {
+        _cooldownTimer?.cancel();
+        _inCooldown = false;
+        _sessionCount = 0; // Reset session count after cooldown
+        notifyListeners();
+      } else {
+        _cooldownSecondsRemaining--;
+        notifyListeners();
+      }
+    });
+  }
+
 }

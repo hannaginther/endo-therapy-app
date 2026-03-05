@@ -1,0 +1,255 @@
+/* SessionScreen.dart
+ * This screen manages the active session
+ * Sends correct BLE command to turn on heat/vibration when the session startes
+ * Run a countdown timer
+ * Show exercises guidance if selected
+ * Send ALL_OFF when session ends
+ * Navigate to EndScreen when session is complete for pain re-rank
+ */
+
+import 'dart:ui';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../bluetooth/ble_manager.dart';
+import '../bluetooth/ble_constants.dart';
+import 'end_screen.dart';
+
+class SessionScreen extends StatefulWidget {
+  final int initialPain;
+  final String exerciseType;
+
+  const SessionScreen({
+    super.key,
+    required this.initialPain,
+    required this.exerciseType,
+  });
+
+  @override
+  State<SessionScreen> createState() => _SessionScreenState();
+}
+
+class _SessionScreenState extends State<SessionScreen> {
+  static const int sessionDuration = 600; // 10 minutes in secs
+  int _secondsRemaining = sessionDuration;
+  bool _sessionStarted = false;
+  bool _sessionEnded = false;
+  Timer? _timer;
+
+
+  void _startSession() {
+    final ble = context.read<BleManager>();
+
+    // Send command to hardware to start session
+    ble.sendCommand(BleCommands.bothOn); // For prototype, just turn on both
+
+    setState(() {
+      _sessionStarted = true;
+    });
+
+    // Tick every second
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining <= 0) {
+        _endSession();
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
+    });
+  }
+
+  void _endSession() {
+    _timer?.cancel();
+    final ble = context.read<BleManager>();
+    ble.sendCommand(BleCommands.allOff); // Turn off hardware at end of session
+  
+    setState(() {
+      _sessionEnded = true;
+    });
+  
+    // Navigate to EndScreen after short delay to show session ended state
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EndScreen(initialPain: widget.initialPain),
+      ),
+    );
+  }
+
+  String _formatTime(int seconds) {
+    final mins = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Session'),
+        automaticallyImplyLeading: false, // Disable back button
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Timer display
+              Text(
+                _formatTime(_secondsRemaining),
+                style: const TextStyle(
+                  fontSize: 64, 
+                  fontWeight: FontWeight.bold,
+                  fontFeatures: [FontFeature.tabularFigures()], // Monospaced digits,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('remaining', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 48),
+
+              // Exercise guidance (placeholder)
+              if (_sessionStarted) _buildExerciseGuidance(),
+
+              const SizedBox(height: 48),
+
+
+              // Start / Stop button
+              if (!_sessionStarted)
+                ElevatedButton(
+                  onPressed: _startSession,
+                  child: const Text('Start Session'),
+                )
+              else
+                OutlinedButton(
+                  onPressed: _endSession,
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('End Session Early'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+            
+  Widget _buildExerciseGuidance() {
+    switch (widget.exerciseType) {
+      case 'breathing':
+        return const Column(
+          children: [
+            Icon(Icons.air, size: 40, color: Colors.blue),
+            SizedBox(height: 8),
+            Text('Breathe in for 4 seconds...\nHold for 4 seconds...\nBreathe out for 4 seconds...', 
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        );
+      case 'physical':
+        return const Column(
+          children: [
+            Icon(Icons.self_improvement, size: 40, color: Colors.green),
+            SizedBox(height: 8),
+            Text('Follow the guided physical exercise on your device screen.', 
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        );
+      case 'both':
+        return const Column(
+          children: [
+            Icon(Icons.favorite, size: 40, color: Colors.purple),
+            SizedBox(height: 8),
+            Text('Combine breathing and physical exercises as guided on your device.', 
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        );
+        default:
+          return const Text(
+            'Device active. \nRest and relax.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          );
+    }
+  }
+  
+    void _handleSafetyShutoff(String alert) {
+      _timer?.cancel();
+      // Show alert dialog to user
+      
+      String message;
+      if (alert.contains('TEMP_HIGH')) {
+        message = 'Device temperature exceeded safe limit (42°C). Session ended automatically for your safety.';
+      } else if (alert.contains('BLE_LOST')) {
+        message = 'Bluetooth connection lost. Session ended and device shut off.';
+      } else if (alert.contains('COMPONENT_FAIL')) {
+        message = 'A hardware fault was detected. Session ended automatically for your safety.';
+      } else {
+        message = 'A safety issue was detected. Session ended automatically for your safety.';
+      }
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false, // User must tap button to dismiss
+        builder: (_) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Session Ended'),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                context.read<BleManager>().clearSafetyAlert();
+                // Pop back to home screen
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for safety alerts from BleManager
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BleManager>().addListener(_checkSafetyAlert);
+    });
+  }
+
+  void _checkSafetyAlert() {
+    final alert = context.read<BleManager>().safetyAlert;
+    if (alert != null && _sessionStarted && !_sessionEnded) {
+      setState(() => _sessionEnded = true); // Prevent multiple dialogs if multiple alerts come in
+      _handleSafetyShutoff(alert);
+    }
+  }
+
+  @override
+  void dispose() {
+    context.read<BleManager>().removeListener(_checkSafetyAlert);
+    _timer?.cancel();
+    if (!_sessionEnded) {
+      context.read<BleManager>().sendCommand(BleCommands.allOff);
+    }
+    super.dispose();  
+}
+
+
+
+
+
+
+
+
