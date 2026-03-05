@@ -7,7 +7,6 @@
  * Navigate to EndScreen when session is complete for pain re-rank
  */
 
-import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,11 +17,13 @@ import 'end_screen.dart';
 class SessionScreen extends StatefulWidget {
   final int initialPain;
   final String exerciseType;
+  final int sessionNumber;
 
   const SessionScreen({
     super.key,
     required this.initialPain,
     required this.exerciseType,
+    required this.sessionNumber
   });
 
   @override
@@ -30,7 +31,7 @@ class SessionScreen extends StatefulWidget {
 }
 
 class _SessionScreenState extends State<SessionScreen> {
-  static const int sessionDuration = 600; // 10 minutes in secs
+  static const int sessionDuration = BleSessionLimits.sessionDurationSeconds;
   int _secondsRemaining = sessionDuration;
   bool _sessionStarted = false;
   bool _sessionEnded = false;
@@ -63,6 +64,10 @@ class _SessionScreenState extends State<SessionScreen> {
     _timer?.cancel();
     final ble = context.read<BleManager>();
     ble.sendCommand(BleCommands.allOff); // Turn off hardware at end of session
+
+    if (ble.sessionCount >= BleSessionLimits.maxSessionsPerUse) {
+      ble.startCooldown();
+    }
   
     setState(() {
       _sessionEnded = true;
@@ -72,7 +77,10 @@ class _SessionScreenState extends State<SessionScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => EndScreen(initialPain: widget.initialPain),
+        builder: (_) => EndScreen(
+          initialPain: widget.initialPain,
+          sessionNumber: widget.sessionNumber,
+        ),
       ),
     );
   }
@@ -224,6 +232,7 @@ class _SessionScreenState extends State<SessionScreen> {
     super.initState();
     // Listen for safety alerts from BleManager
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BleManager>().incrementSessionCount();
       context.read<BleManager>().addListener(_checkSafetyAlert);
     });
   }
@@ -244,12 +253,6 @@ class _SessionScreenState extends State<SessionScreen> {
       context.read<BleManager>().sendCommand(BleCommands.allOff);
     }
     super.dispose();  
+  }
 }
-
-
-
-
-
-
-
 

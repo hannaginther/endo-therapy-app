@@ -31,6 +31,7 @@ class BleManager extends ChangeNotifier {
   String get lastReceivedData => _lastReceivedData;
   List<ScanResult> get scanResults => List.unmodifiable(_scanResults);
   BluetoothDevice? get connectedDevice => _connectedDevice;
+  BluetoothCharacteristic? get txCharacteristic => _txCharacteristic;
   bool get deviceUnavailable => ! _isConnected && !isScanning && _retryCount >= maxRetries;
   String? get safetyAlert => _safetyAlert;
   int get sessionCount => _sessionCount;
@@ -136,14 +137,14 @@ class BleManager extends ChangeNotifier {
           _lastReceivedData = message;
         }
         notifyListeners();
-
-        void clearSafetyAlert() {
-          _safetyAlert = null;
-          notifyListeners();
-        }
       }
     });
   }
+  void clearSafetyAlert() {
+     _safetyAlert = null;
+    notifyListeners();
+    }
+  
 
   Future<void> sendCommand (String command) async {
     if (_rxCharacteristic == null || !_isConnected) return;
@@ -167,7 +168,7 @@ class BleManager extends ChangeNotifier {
     _rxCharacteristic = null;
     _isConnected = false;
     _lastReceivedData = '';
-    _safetyAlert = 'SAFETY: BLE_LOST';
+    _safetyAlert = 'SAFETY:BLE_LOST';
     notifyListeners();
   }
 

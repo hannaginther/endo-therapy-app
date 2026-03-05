@@ -4,6 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'session_screen.dart';
+import 'package:provider/provider.dart';
+import '../bluetooth/ble_manager.dart';
 
 class ExerciseSelectionScreen extends StatefulWidget {
   final int initialPain;
@@ -117,12 +119,15 @@ class _ExerciseOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RadioListTile<String>(
+    return ListTile(
       title: Text(label),
       subtitle: Text(description),
-      value: value,
-      groupValue: groupValue,
-      onChanged: onChanged,
+      leading: Radio<String>(
+        value: value,
+        groupValue: groupValue,
+        onChanged: onChanged,
+      ),
+      onTap: () => onChanged(value),
     );
   } 
 }

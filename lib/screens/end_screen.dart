@@ -5,7 +5,7 @@
   */
 
 import 'package:flutter/material.dart';
-import 'package:prototype_app/bluetooth/ble_constants.dart';
+import '../bluetooth/ble_constants.dart';
 
 class EndScreen extends StatefulWidget {
   final int initialPain;
@@ -97,13 +97,6 @@ class _EndScreenState extends State<EndScreen> {
               },
               child: const Text('Try Again'),
             ),
-          TextButton(
-            onPressed: () {
-              // Pop all screens back to home to start fresh
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            child: const Text('Try Again'),
-          ),
         TextButton(
            onPressed: () {
             Navigator.of(context).popUntil((route) => route.isFirst);

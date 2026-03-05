@@ -62,7 +62,7 @@ class HomeScreen extends StatelessWidget {
       );
     }
 
-    9f (ble.inCooldown) {
+    if (ble.inCooldown) {
       final mins = (ble.cooldownSecondsRemaining ~/ 60).toString().padLeft(2, '0');
       final secs = (ble.cooldownSecondsRemaining % 60).toString().padLeft(2, '0');
 
@@ -70,7 +70,7 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.timer, size: 48, Colors.orange),
+            const Icon(Icons.timer, size: 48, color: Colors.orange),
             const SizedBox(height: 16),
             const Text ('Cooldown Period',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),

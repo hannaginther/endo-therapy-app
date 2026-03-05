@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'bluetooth/ble_manager.dart';
-import 'screen/home_screen.dart';
+import 'screens/home_screen.dart';
 
 void main(){
   runApp(
