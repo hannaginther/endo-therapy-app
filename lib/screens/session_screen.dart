@@ -36,10 +36,11 @@ class _SessionScreenState extends State<SessionScreen> {
   bool _sessionStarted = false;
   bool _sessionEnded = false;
   Timer? _timer;
+  late BleManager _ble;
 
 
   void _startSession() {
-    final ble = context.read<BleManager>();
+    final ble = _ble;
 
     // Send command to hardware to start session
     ble.sendCommand(BleCommands.bothOn); // For prototype, just turn on both
@@ -64,7 +65,7 @@ class _SessionScreenState extends State<SessionScreen> {
     _timer?.cancel();
     if (!mounted) return;
 
-    final ble = context.read<BleManager>();
+    final ble = _ble;
     ble.sendCommand(BleCommands.allOff); // Turn off hardware at end of session
 
     if (ble.sessionCount >= BleSessionLimits.maxSessionsPerUse) {
@@ -223,7 +224,7 @@ class _SessionScreenState extends State<SessionScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                context.read<BleManager>().clearSafetyAlert();
+                _ble.clearSafetyAlert();
                 // Pop back to home screen
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
@@ -237,16 +238,17 @@ class _SessionScreenState extends State<SessionScreen> {
   @override
   void initState() {
     super.initState();
+    _ble = context.read<BleManager>();
     // Listen for safety alerts from BleManager
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BleManager>().incrementSessionCount();
-      context.read<BleManager>().addListener(_checkSafetyAlert);
+      _ble.incrementSessionCount();
+      _ble.addListener(_checkSafetyAlert);
     });
   }
 
   void _checkSafetyAlert() {
     if (!mounted) return;
-    final alert = context.read<BleManager>().safetyAlert;
+    final alert = _ble.safetyAlert;
     if (alert != null && _sessionStarted && !_sessionEnded) {
       setState(() => _sessionEnded = true); // Prevent multiple dialogs if multiple alerts come in
       _handleSafetyShutoff(alert);
@@ -255,10 +257,10 @@ class _SessionScreenState extends State<SessionScreen> {
 
   @override
   void dispose() {
-    context.read<BleManager>().removeListener(_checkSafetyAlert);
+    _ble.removeListener(_checkSafetyAlert);
     _timer?.cancel();
     if (!_sessionEnded) {
-      context.read<BleManager>().sendCommand(BleCommands.allOff);
+      _ble.sendCommand(BleCommands.allOff);
     }
     super.dispose();  
   }
