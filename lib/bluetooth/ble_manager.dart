@@ -49,8 +49,11 @@ class BleManager extends ChangeNotifier {
 
     _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
       for (final r in results) {
-        if (r.advertisementData.serviceUuids
-        .any((uuid) => uuid.toString() == BleConstants.serviceUuid)) {
+        final matchesByUuid = r.advertisementData.serviceUuids
+            .any((uuid) => uuid.toString().toLowerCase() == BleConstants.serviceUuid.toLowerCase());
+        final matchesByName = r.advertisementData.advName == BleConstants.deviceName ||
+            r.device.platformName == BleConstants.deviceName;
+        if (matchesByUuid || matchesByName) {
           stopScan();
           connectTo(r.device);
           return;

@@ -1,0 +1,367 @@
+EndoRelief Sync Software Architecture
+ 
+Layer:
+Language
+Environment
+
+Firmware:
+C++
+Arduino IDE
+
+App:
+Dart (flutter)
+VS Code
+Simulation Logic:
+?
+?
+
+Data analysis (optional):
+Python
+Later
+
+Introduction
+The purpose of this document is to define the systematic requirements, overall functioning, and design concepts of a prototype aimed at relieving pelvic pain/dysmenorrhea associated with endometriosis. The system relies on user input for pain logging and ranking within an application, which then controls device output (heat and vibration) as well as in-app guided exercises (breathing and physical). Software architecture is required in this case to design the operation and integration of both hardware and software components to ensure the device is functional, operates within defined safety boundaries, and clearly outlines required languages, coding environments, control flow/logic, and all relevant device commands.
+
+System Overview
+Description:
+·      Multimodal therapeutic system
+·      Components: wearable belt, mobile app, cloud backend (potentially)
+·      Closed-loop control: bio-responsive therapy triggered by user input
+Use Cases/Scenarios:
+·      Patient logs + ranks pain -> device provides heat + vibration -> app guides exercises -> therapy stops automatically when pain subsides (ie patient re-ranks pain 0/inputs no pain)
+·      Data is collected for longitudinal tracking and optional healthcare provider monitoring
+Goals & Non-Goals:
+·      Goals: real-time pain intervention, safety mechanisms, portable/discrete design
+·      Non-goals: 
+ 
+Hardware Components:
+1.        Arduino Nano ESP32 (SKU: ABX00083) 
+2.        MCP9808 — I2C temperature sensor 
+3.        MOSFET — controls the heater 
+4.        Heater — resistive heat output 
+5.        Adafruit DRV2605L — I2C haptic motor driver 
+6.        Vibration motor — driven by DRV2605L
+ 
+
+Device Commands and Control Interface
+App to Device Commands :
+Command
+Parameters
+D Type
+Purpose/Notes
+START_SESSION
+None
+N/A
+Begins a therapy session. Device initializes heating, vibration, and session timers.
+STOP_SESSION
+None
+N/A
+Immediately stops all device activity. User safety override.
+SET_HEAT_LEVEL
+0-3 (or temperature in °C)
+int/float
+Sets heat intensity. Use 0 = off, 1-3 = increasing intensity. Could also accept temp from TMP117 sensor calibration = optional direct temp mode.
+SET_VIBRATION_LEVEL
+0-3 * TBD
+int
+Controls vibration intensity. 0 = OFF, 1-3 = low-high. Optional: allow waveform selection.
+SET_GUIDED_EXERCISES
+Exercise selection
+enum / array
+User selects which exercises to include in session.
+Options:
+“BREATHING” (A),
+“STRETCHING” (B),
+“NONE” (C)
+Can send multiple, [“BREATHING”, “STRETCHING”].
+Command sent before START_SESSION. “NONE” overrides A or B if selected alone.
+START_EXERCISE_GUIDANCE
+Exercise ID
+string/enum
+Start guided exercises: e.g. “CAT_COW”, “CHILD_POSE”, “PELVIC_TILT”,
+“DIAPHRAGMATIC_BREATHING”.
+PAUSE_SESSION
+None
+N/A
+Temporarily pauses therapy (safety or user request). Heating and vibration stop.
+RESUME_SESSION
+None
+N/A
+Resumes paused session.
+SET_BIOFEEDBACK_MODE
+Mode ID
+string/enum
+Enables automatic closed-loop mode based on pain feedback:
+“AUTO_REPEAT”,
+“ADAPTIVE_INTENSITY”.
+REQUEST_DEVICE_STATUS
+None
+N/A
+App requests current state, telemetry, battery, temp, vibration level, session progress  for UI or safety monitoring.
+SET_SAFETY_LIMITS
+MaxTemp °C, MaxVibration 0-3, MaxSessionDuration min
+object
+Ensures device can’t exceed safety thresholds.
+CALIBRATE_SENSORS
+None / calibration data
+N/A
+Initializes temperature or vibration sensors. Optional if device supports self-calibration.
+ 
+ 
+ 
+ 
+Device -> App Commands:
+Response
+Parameters
+D Type
+Purpose/Notes
+STATE
+“IDLE”, 
+“ACTIVE”,
+“PAUSED”,
+“ERROR”
+string
+Device operational state.
+TEMP
+°C
+float
+Current heating element temperature (TMP117 sensor).
+VIBRATION
+0-3 * TBD
+int
+Current vibration intensity.
+SESSION_PROGRESS
+0 – 100%
+int
+Percentage of session complete.
+ERROR
+Error code/description
+string / int
+Critical errors: “OVERHEAT”, “MOTOR_FAULT”,
+“SENSOR_FAIL”.
+USER_FEEDBACK_REQUEST
+None
+N/A
+Signals app to prompt user for pain re-ranking.
+EXERCISE_SELECTION_CONFIRM
+Exercise Selection
+array
+Confirms which exercises will be included in this session.
+Example: [“BREATHING”, “STRETCHING”]
+EXERCISE_PROMPT
+Exercise Type
+string
+Prompts user to start selected exercise, sent when session reaches exercise phase.
+SESSION_COMPLETE
+“SUCCESS”,
+“TERMINATED”
+string
+Device indicates session is finished (pain relieved) or terminated (user safety error).
+BATTERY_STATUS
+Voltage (V), Charge (%)
+float / int
+Device battery telemetry.
+SENSOR_CALIBRATION_STATUS
+Success / Fail
+string
+Confirmation of sensor calibration.
+ 
+Sensory & Telemetry Data:
+·      Temperature: periodic updates, every 1-5s (configurable)
+·      Vibration motor status: on/off, current intensity level
+·      Battery: voltage & charge
+·      Session progress: %
+·      Error flags / safety events
+ 
+Safety Constraints:
+·      Max temperature (default 42°C, configurable)
+·      Max vibration intensity (default 3, configurable)
+·      Max session duration (default 30 minutes, configurable)
+·      Auto-shutdown triggers:
+o   Overheat
+o   Sensor failure
+o   Device disconnect
+o   User pressing STOP
+·      Therapy only active when user pain > 0
+ 
+Closed-Loop / Bio-responsive Logic
+Logic Overview:
+1.        User logs pain in app (scale 0-5) 
+o   If pain = 0 -> no session is initiated
+2.        User selects guided exercises:
+o   “BREATHING” (meditative / diaphragmatic)
+o   “STRETCHING” (physical stretches: pelvic tilts, cat/cow, child’s pose, etc)
+o   “NONE” (no exercise guidance)
+o   Options can be combined: BREATHING alone, STRETCHING alone, BREATHING + STRETCHING, or NONE
+3.        User triggers START_SESSION (or app automatically triggers after pain log + exercise selection)
+4.        Device begins therapy session:
+o   Activates heating +vibration at pre-set or adaptive levels
+o   Guides user through selected exercises:
+§  “BREATHING”  diaphragmatic breathing exercise
+§  “STRETCHING”  physical stretch guidance
+§  “NONE”  skips exercise phase  device shut-off managed by timer not exercise conclusion
+5.        Session monitoring & closed loop decisions:
+o   Device monitors: 
+§  Temperature (safety limit)
+§  Vibration (safety limit)
+§  Session duration (max duration)
+o   Exercise selected (BREATHING and/or STRETCHING):
+§  After exercises, user is prompted to re-rank pain (USER_FEEDBACK_REQUEST)
+§  If pain <= threshold  STOP_SESSION (therapy ends)
+§  If pain > threshold  optionally repeat cycle or safely increase intensity (heat/vibration) within safety limits.
+o   Exercise NONE:
+§  Therapy runs for preset session duration (e.g., 15-30 mins)
+§  STOP_SESSION is automatically triggered after time elapses
+6.        Cycle repeats only for sessions including exercises, until pain relief is achieved or session is terminated by safety constraints (max temp, max vibration, max session duration)
+ 
+Data Logging & Remote Monitoring:
+·      Each session generates a data object:
+</> JSON
+{
+  "session_id": "uuid",
+  "start_time": "2026-02-20T14:00:00Z",
+  "end_time": "2026-02-20T14:30:00Z",
+  "pain_initial": 7,
+  "pain_final": 3,                      // For NONE sessions, this may be null or equal to initial
+  "exercise_selection": ["BREATHING", "STRETCHING"],
+  "heat_level": 2,
+  "vibration_level": 1,
+  "therapy_trigger": "USER_PAIN_LOG", // or "NONE_TIMED_SESSION"
+  "session_duration": 25,            // minutes
+  "device_temp_peak": 41.5,
+  "device_status_log": [
+    {"time": "t1", "temp": 38.5, "vibration": 1},
+    {"time": "t2", "temp": 39.0, "vibration": 1},
+    ...
+  ],
+  "stop_reason": "PAIN_RELIEF"       // "PAIN_RELIEF" or "TIME_ELAPSED" or "ERROR"
+}
+ 
+ 
+Closed-Loop Session Logic (Pseudocode)(OLD):
+
+</> Python
+# Safety & therapy parameters
+MAX_TEMP = 42       # Celsius
+MAX_VIB = 3
+MAX_DURATION = 30   # minutes
+PAIN_THRESHOLD = 3  # Threshold for therapy completion
+ 
+def start_therapy_session(pain_initial, exercises):
+    """
+    Starts a therapy session based on initial pain and user-selected exercises.
+    """
+ 
+    # Check if therapy is needed
+    if pain_initial <= 0:
+        print("No therapy needed")
+        return
+ 
+    # Determine session type based on exercise selection
+    if exercises == ["NONE"]:
+        therapy_type = "NONE_TIMED_SESSION"
+    else:
+        therapy_type = "USER_PAIN_LOG"
+ 
+    # START_SESSION triggered
+    start_session()
+    set_heat_level(2)
+    set_vibration_level(1)
+ 
+    # Begin exercise guidance phase
+    if "BREATHING" in exercises:
+        start_exercise_guidance("DIAPHRAGMATIC_BREATHING")
+    if "STRETCHING" in exercises:
+        start_exercise_guidance("PHYSICAL_STRETCHING")
+ 
+    session_start_time = now()
+    stop_reason = None
+    user_pain = pain_initial
+ 
+    while True:
+        # Monitor safety
+        temp = read_temperature()
+        if temp > MAX_TEMP:
+            stop_session()
+            send_error("OVERHEAT")
+            stop_reason = "ERROR_OVERHEAT"
+            break
+ 
+        vibration = read_vibration_level()
+        if vibration > MAX_VIB:
+            stop_session()
+            send_error("VIBRATION_OVERLOAD")
+            stop_reason = "ERROR_VIBRATION"
+            break
+ 
+        elapsed_time = (now() - session_start_time).total_seconds() / 60  # minutes
+        if elapsed_time >= MAX_DURATION:
+            stop_session()
+            stop_reason = "TIME_ELAPSED"
+            break
+ 
+        # If exercises were selected, prompt pain re-ranking
+        if therapy_type == "USER_PAIN_LOG":
+            user_pain = get_user_pain_input()
+            if user_pain <= PAIN_THRESHOLD:
+                stop_session()
+                stop_reason = "PAIN_RELIEF"
+                break
+            else:
+                # Optionally increase intensity safely
+                set_heat_level(min(get_current_heat() + 1, MAX_TEMP))
+                set_vibration_level(min(get_current_vibration() + 1, MAX_VIB))
+ 
+        # For NONE sessions, STOP_SESSION occurs automatically after MAX_DURATION
+        elif therapy_type == "NONE_TIMED_SESSION":
+            # No pain re-ranking; session continues until MAX_DURATION
+            if elapsed_time >= MAX_DURATION:
+                stop_session()
+                stop_reason = "TIME_ELAPSED"
+                break
+ 
+    # Log session data
+    session_log = {
+        "start_time": session_start_time,
+        "end_time": now(),
+        "pain_initial": pain_initial,
+        "pain_final": user_pain if therapy_type == "USER_PAIN_LOG" else None,
+        "exercise_selection": exercises,
+        "heat_level": get_current_heat(),
+        "vibration_level": get_current_vibration(),
+        "therapy_trigger": therapy_type,
+        "session_duration": elapsed_time,
+        "stop_reason": stop_reason,
+        "device_temp_peak": get_peak_temperature(),
+        "device_status_log": get_device_status_log()
+    }
+ 
+    upload_session_log(session_log)
+    print("Session complete:", stop_reason)
+ 
+State Machine Integration:
+IDLE
+ │
+ │ (User logs pain)
+ ▼
+PAIN_LOGGED
+ │
+ │ (User selects exercises)
+ ▼
+EXERCISE_SELECTED
+ │
+ │ (START_SESSION triggered)
+ ▼
+ACTIVE
+ └─> EXERCISE_PHASE (if BREATHING/STRETCHING selected)
+ │       │
+ │       └─> USER_FEEDBACK (re-rank pain)
+ │                 │
+ │                 └─> PAIN ≤ THRESHOLD → STOP_SESSION → SESSION_COMPLETE → IDLE
+ │                 └─> PAIN > THRESHOLD → adjust intensity → ACTIVE (repeat cycle)
+ │
+ └─> TIMED_SESSION (if NONE selected)
+          │
+          └─> STOP_SESSION when MAX_DURATION → SESSION_COMPLETE → IDLE
+ │
+ └─> ERROR (OVERHEAT, SENSOR_FAIL, VIBRATION_OVERLOAD, LOW_BATTERY) → IDLE

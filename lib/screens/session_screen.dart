@@ -36,6 +36,7 @@ class _SessionScreenState extends State<SessionScreen> {
   bool _sessionStarted = false;
   bool _sessionEnded = false;
   Timer? _timer;
+  Timer? _keepaliveTimer;
   late BleManager _ble;
 
 
@@ -47,6 +48,11 @@ class _SessionScreenState extends State<SessionScreen> {
 
     setState(() {
       _sessionStarted = true;
+    });
+
+    // Keepalive: send READ_TEMP every 25 seconds so the Arduino's BLE timeout doesn't fire
+    _keepaliveTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      ble.sendCommand(BleCommands.readTemp);
     });
 
     // Tick every second
@@ -63,6 +69,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
   void _endSession() {
     _timer?.cancel();
+    _keepaliveTimer?.cancel();
     if (!mounted) return;
 
     final ble = _ble;
@@ -259,6 +266,7 @@ class _SessionScreenState extends State<SessionScreen> {
   void dispose() {
     _ble.removeListener(_checkSafetyAlert);
     _timer?.cancel();
+    _keepaliveTimer?.cancel();
     if (!_sessionEnded) {
       _ble.sendCommand(BleCommands.allOff);
     }
