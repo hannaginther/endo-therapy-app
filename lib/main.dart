@@ -6,11 +6,7 @@ import 'screens/home_screen.dart';
 void main(){
   runApp(
     ChangeNotifierProvider(
-      create: (_) {
-        final ble = BleManager(); // wraps app, all screens can access BleManager
-        ble.startScan(); // Auto scan on launch
-        return ble;
-      },
+      create: (_) => BleManager(), // wraps app, all screens can access BleManager
       child: const MyApp(),
     ),
   );
@@ -21,10 +17,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'Endosync Prototype',
       debugShowCheckedModeBanner: false,
-      home: const HomeScreen(),
+      home: HomeScreen(),
     );
   }
 }

@@ -1,39 +1,50 @@
-// Libraries
+// EndoSync firmware — PlatformIO / Arduino framework
+// Board: Arduino Nano ESP32 (ABX00083)
+//
+// Converted from endosync_hardwarev2.ino; logic is unchanged.
+// PlatformIO requires: explicit #include <Arduino.h> and forward declarations.
+
+#include <Arduino.h>
 #include <ArduinoBLE.h>
 #include <Wire.h>
 #include <Adafruit_MCP9808.h>
 #include <Adafruit_DRV2605.h>
 
-// pin assignments:
-#define HEAT_PIN D5   // GPIO8 - MOSFET gate (matches working test wiring)
-#define MAX_TEMP 42.0 // safety cutoff temperature in celsius
+// Pin assignments
+#define HEAT_PIN D5    // GPIO8 — MOSFET gate
+#define MAX_TEMP 42.0f // Safety cutoff (°C)
 
-// BLE UUIDs (must match ble_constants.dart exactly)
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define TX_CHARACTERISTIC   "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define RX_CHARACTERISTIC   "6c88fae1-9bfb-4a9e-8f30-1d5a7c8b9f0c"
+// BLE UUIDs — must match ble_constants.dart exactly
+#define SERVICE_UUID      "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define TX_CHARACTERISTIC "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define RX_CHARACTERISTIC "6c88fae1-9bfb-4a9e-8f30-1d5a7c8b9f0c"
 
 // BLE objects
-BLEService endosyncService (SERVICE_UUID);
-BLEStringCharacteristic rxCharacteristic(RX_CHARACTERISTIC, BLEWrite, 20);
+BLEService endosyncService(SERVICE_UUID);
+BLEStringCharacteristic rxCharacteristic(RX_CHARACTERISTIC, BLEWrite,  20);
 BLEStringCharacteristic txCharacteristic(TX_CHARACTERISTIC, BLENotify, 20);
 
 // Hardware objects
 Adafruit_MCP9808 tempSensor;
 Adafruit_DRV2605 hapticDriver;
 
-// State variables
-bool heatActive = false;
-bool vibrateActive = false;
-bool tempSensorOk = false;
-bool hapticDriverOk = false;
+// State
+bool heatActive      = false;
+bool vibrateActive   = false;
+bool tempSensorOk    = false;
+bool hapticDriverOk  = false;
 unsigned long lastCommandTime = 0;
-const unsigned long BLE_TIMEOUT_MS = 660000; // 11 minutes (covers full 10-min session)
+const unsigned long BLE_TIMEOUT_MS = 660000UL; // 11 minutes
+
+// Forward declarations (required in .cpp, not needed in .ino)
+void safetyShutoff(String reason);
+void handleCommand(String command);
+
+// ---------------------------------------------------------------------------
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(115200);
-  delay(1500); // Wait for native USB-CDC to enumerate on Nano ESP32
+  delay(1500); // Wait for USB-CDC to enumerate on Nano ESP32
   Serial.println("Endosync booting...");
 
   pinMode(HEAT_PIN, OUTPUT);
@@ -50,7 +61,7 @@ void setup() {
     Serial.println("MCP9808 ready.");
   }
 
-  if(!hapticDriver.begin()) {
+  if (!hapticDriver.begin()) {
     Serial.println("WARNING: DRV2605 not found. Vibration disabled.");
     hapticDriverOk = false;
   } else {
@@ -60,7 +71,7 @@ void setup() {
     Serial.println("DRV2605L ready.");
   }
 
-  if(!BLE.begin()) {
+  if (!BLE.begin()) {
     Serial.println("ERROR: BLE failed to start.");
     while (1);
   }
@@ -74,15 +85,15 @@ void setup() {
 
   Serial.println("BLE advertising as 'EndoSync'.");
   Serial.println("Setup complete. Waiting for connection...");
-
 }
 
-// Safety shutoff
+// ---------------------------------------------------------------------------
+
 void safetyShutoff(String reason) {
   digitalWrite(HEAT_PIN, LOW);
   if (hapticDriverOk) hapticDriver.stop();
-  heatActive = false;
-  vibrateActive = false;
+  heatActive     = false;
+  vibrateActive  = false;
 
   String alert = "SAFETY:" + reason;
   txCharacteristic.writeValue(alert);
@@ -91,8 +102,7 @@ void safetyShutoff(String reason) {
   Serial.println(reason);
 }
 
-// Command handler
-void handleCommand (String command) {
+void handleCommand(String command) {
   Serial.print("Received: ");
   Serial.println(command);
 
@@ -134,7 +144,7 @@ void handleCommand (String command) {
   } else if (command == "ALL_OFF") {
     digitalWrite(HEAT_PIN, LOW);
     if (hapticDriverOk) hapticDriver.stop();
-    heatActive = false;
+    heatActive    = false;
     vibrateActive = false;
     txCharacteristic.writeValue("ALL_OFF");
 
@@ -152,24 +162,25 @@ void handleCommand (String command) {
   }
 }
 
+// ---------------------------------------------------------------------------
+
 void loop() {
-  // put your main code here, to run repeatedly:
   BLEDevice central = BLE.central();
 
   if (central) {
     Serial.print("Connected to: ");
     Serial.println(central.address());
-    lastCommandTime = millis(); // reset timeout on each command
+    lastCommandTime = millis();
 
     while (central.connected()) {
-      // handle incoming commands
+      // Handle incoming commands
       if (rxCharacteristic.written()) {
         String command = rxCharacteristic.value();
         handleCommand(command);
         lastCommandTime = millis();
       }
 
-      // temperature safety check every 500 ms
+      // Temperature safety check every 500 ms
       static unsigned long lastTempCheck = 0;
       if (tempSensorOk && (millis() - lastTempCheck >= 500)) {
         lastTempCheck = millis();
@@ -182,16 +193,16 @@ void loop() {
         }
       }
 
-      // BLE timeout check
+      // BLE activity timeout
       if ((heatActive || vibrateActive) &&
           (millis() - lastCommandTime >= BLE_TIMEOUT_MS)) {
-            safetyShutoff("BLE_TIMEOUT");
-          }
+        safetyShutoff("BLE_TIMEOUT");
+      }
     }
 
     Serial.println("Disconnected.");
     safetyShutoff("BLE_LOST");
-    BLE.advertise(); // Resume advertising so phone can reconnect
+    BLE.advertise();
     Serial.println("Resuming BLE advertising...");
   }
 }

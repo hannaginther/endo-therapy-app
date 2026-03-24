@@ -4,14 +4,16 @@
 
 import 'package:flutter/material.dart';
 import 'session_screen.dart';
-import 'package:provider/provider.dart';
-import '../bluetooth/ble_manager.dart';
 
 class ExerciseSelectionScreen extends StatefulWidget {
   final int initialPain;
+  final int sessionNumber;
 
-
-  const ExerciseSelectionScreen({super.key, required this.initialPain});
+  const ExerciseSelectionScreen({
+    super.key,
+    required this.initialPain,
+    this.sessionNumber = 0,
+  });
 
   @override
   State<ExerciseSelectionScreen> createState() => _ExerciseSelectionScreenState();
@@ -86,7 +88,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                             builder: (_) => SessionScreen(
                               initialPain: widget.initialPain,
                               exerciseType: _selectedExercise!,
-                              sessionNumber: context.read<BleManager>().sessionCount,
+                              sessionNumber: widget.sessionNumber,
                             ),
                           ),
                         );

@@ -68,6 +68,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   void _endSession() {
+    _ble.incrementSessionCount(); // Count completed sessions, not started ones
     _timer?.cancel();
     _keepaliveTimer?.cancel();
     if (!mounted) return;
@@ -202,14 +203,17 @@ class _SessionScreenState extends State<SessionScreen> {
   
     void _handleSafetyShutoff(String alert) {
       _timer?.cancel();
+      _keepaliveTimer?.cancel();
       if (!mounted) return;
       // Show alert dialog to user
-      
+
       String message;
       if (alert.contains('TEMP_HIGH')) {
         message = 'Device temperature exceeded safe limit (42°C). Session ended automatically for your safety.';
       } else if (alert.contains('BLE_LOST')) {
         message = 'Bluetooth connection lost. Session ended and device shut off.';
+      } else if (alert.contains('BLE_TIMEOUT')) {
+        message = 'No activity was detected for 11 minutes. Session ended automatically for your safety.';
       } else if (alert.contains('COMPONENT_FAIL')) {
         message = 'A hardware fault was detected. Session ended automatically for your safety.';
       } else {
@@ -248,7 +252,6 @@ class _SessionScreenState extends State<SessionScreen> {
     _ble = context.read<BleManager>();
     // Listen for safety alerts from BleManager
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ble.incrementSessionCount();
       _ble.addListener(_checkSafetyAlert);
     });
   }
