@@ -251,7 +251,7 @@ class HomeScreen extends StatelessWidget {
       final name = r.advertisementData.advName.isNotEmpty
           ? r.advertisementData.advName
           : r.device.platformName;
-      return name == BleConstants.deviceName;
+      return name.contains(BleConstants.deviceName);
     }).toList();
 
     if (endosyncResults.isEmpty) {
