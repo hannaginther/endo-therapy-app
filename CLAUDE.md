@@ -64,8 +64,8 @@ Two-component system: Arduino Nano ESP32 firmware (BLE GATT server) + Flutter iO
 
 ### 3. Run a session via the app
 1. Power the device (USB or battery).
-2. **Flip the D6 switch ON** — the LED on D9 turns on and the device starts BLE advertising.
-3. Launch the **EndoSync** iOS app and tap **Scan for Device**.
+2. Launch the **EndoSync** iOS app and tap **Scan for Device**.
+3. **Flip the D6 switch ON** — the LED on D9 turns on and the device starts BLE advertising.
 4. Once connected, the home screen shows the device as connected.
 5. **Rate pain** (1–10 slider) → tap Continue.
 6. **Select exercise mode**: Guided Breathing, Guided Physical Exercise, Both, or No Exercise → tap Start Session.

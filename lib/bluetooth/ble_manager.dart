@@ -75,7 +75,10 @@ class BleManager extends ChangeNotifier {
     });
 
     try {
-      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
+      await FlutterBluePlus.startScan(
+        withServices: [Guid(BleConstants.serviceUuid)],
+        timeout: const Duration(seconds: 10),
+      );
     } catch (e) {
       _connectionError = e.toString().replaceFirst('Exception: ', '');
     } finally {

@@ -245,7 +245,16 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildDeviceList(BleManager ble) {
-    if (ble.scanResults.isEmpty) {
+    // Pre-filter to only EndoSync devices so the empty-state message is shown
+    // correctly even when other BLE devices are nearby.
+    final endosyncResults = ble.scanResults.where((r) {
+      final name = r.advertisementData.advName.isNotEmpty
+          ? r.advertisementData.advName
+          : r.device.platformName;
+      return name == BleConstants.deviceName;
+    }).toList();
+
+    if (endosyncResults.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -267,11 +276,11 @@ class HomeScreen extends StatelessWidget {
     }
 
     return ListView.separated(
-      itemCount: ble.scanResults.length,
+      itemCount: endosyncResults.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) => _DeviceTile(
-        result: ble.scanResults[i],
-        onConnect: () => ble.connectTo(ble.scanResults[i].device),
+        result: endosyncResults[i],
+        onConnect: () => ble.connectTo(endosyncResults[i].device),
       ),
     );
   }
