@@ -283,6 +283,55 @@
   .import-bar label { font-size: 13px; font-weight: 600; color: var(--teal-dk); }
   .import-bar input[type=file] { font-size: 12px; }
   #import-status { font-size: 12px; color: var(--teal-dk); font-style: italic; }
+
+  .mode-banner {
+    display: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    font-weight: 600;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .mode-banner.hardware {
+    display: flex;
+    background: var(--green-lt);
+    border: 1px solid var(--green);
+    color: var(--green);
+  }
+  .mode-banner.software {
+    display: flex;
+    background: var(--amber-lt);
+    border: 1px solid var(--amber);
+    color: var(--amber);
+  }
+  .mode-banner .mode-icon { font-size: 18px; }
+  .mode-banner .mode-text { flex: 1; }
+  .mode-banner .mode-override {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.8;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    color: inherit;
+    padding: 0;
+  }
+  .software-warning {
+    display: none;
+    border-left: 4px solid var(--amber);
+    background: var(--amber-lt);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--gray);
+  }
+  .software-warning strong { display: block; margin-bottom: 4px; color: var(--amber); }
+  .software-warning.visible { display: block; }
 </style>
 </head>
 <body>
@@ -301,6 +350,21 @@
     <label>📥 Import session data from app:</label>
     <input type="file" id="json-import" accept=".json">
     <span id="import-status"></span>
+  </div>
+
+  <div class="mode-banner" id="mode-banner">
+    <span class="mode-icon" id="mode-icon"></span>
+    <span class="mode-text" id="mode-text"></span>
+    <button class="mode-override" onclick="toggleModeOverride()" id="mode-override-btn">Change</button>
+  </div>
+  <div id="mode-override-panel" style="display:none; margin-bottom:16px; padding:12px 16px; background:var(--gray-lt); border:1px solid var(--border); border-radius:8px; font-size:13px;">
+    <strong style="display:block;margin-bottom:8px;">Override detected test mode:</strong>
+    <label style="margin-right:16px;cursor:pointer;">
+      <input type="radio" name="mode-override" value="hardware" onchange="applyModeOverride('hardware')"> Hardware test (device connected)
+    </label>
+    <label style="cursor:pointer;">
+      <input type="radio" name="mode-override" value="software_only" onchange="applyModeOverride('software_only')"> Software only (no device, BLE skipped)
+    </label>
   </div>
 
   <!-- ══ SUMMARY ROW ══════════════════════════════════════════════════════════ -->
@@ -392,6 +456,11 @@
       <div class="card-title">
         1.2 Session Auto-Termination Timing
         <span class="tooltip-info">Target: 600 s ±2 s</span>
+      </div>
+      <div class="software-warning" id="p12-software-warning">
+        <strong>⚠ Software test data — session durations reflect debug timers, not the 600 s production spec</strong>
+        These timings were recorded with kDebugShortTimers = true (30 s sessions).
+        Do not compare against the 600 s ±2 s production target. Hardware test data is required for Phase 1.2 validation.
       </div>
       <div class="data-panel">
         <h4>Session Duration Data</h4>
@@ -562,6 +631,12 @@
 
     <div class="card">
       <div class="card-title">4.4 Pain Outcomes by Exercise Type</div>
+      <div class="software-warning" id="p44-software-warning">
+        <strong>⚠ Software test data — do not interpret as clinical outcomes</strong>
+        These sessions were recorded with Bluetooth disabled (kDebugSkipBle = true) and no device connected.
+        Pain values were entered manually to test app flow, not to reflect actual therapeutic outcomes.
+        For valid pain-outcome analysis, import a hardware test export.
+      </div>
       <div class="data-panel">
         <h4>Enter stored session data (paste each row as: initialPain,finalPain,exerciseType)</h4>
         <textarea class="data-input" id="session-data" style="min-height:100px" placeholder="7,4,breathing&#10;6,5,physical&#10;8,3,both&#10;5,5,none&#10;7,6,breathing&#10;9,4,both&#10;6,7,physical&#10;8,5,breathing"></textarea>
@@ -706,6 +781,7 @@
 // ─── State ──────────────────────────────────────────────────────────────────
 let charts = {};
 let phaseResults = { 1: null, 2: null, 3: null, 4: null, 5: null };
+let currentTestMode = null; // 'hardware' | 'software_only' | null
 
 // ─── Tab switching ───────────────────────────────────────────────────────────
 function switchTab(n) {
@@ -1249,12 +1325,58 @@ function importDashboardJson(file) {
       const dt = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'unknown time';
       status.textContent = `✓ Imported ${(data.sessions || []).length} session(s) exported at ${dt}`;
       status.style.color = 'var(--green)';
+
+      // Apply test mode badge
+      const mode = data.testMode || 'hardware'; // default to hardware if field absent (older exports)
+      applyTestMode(mode);
     } catch (err) {
       document.getElementById('import-status').textContent = '✗ Could not parse file: ' + err.message;
       document.getElementById('import-status').style.color = 'var(--red)';
     }
   };
   reader.readAsText(file);
+}
+
+// ─── TEST MODE ───────────────────────────────────────────────────────────────
+function applyTestMode(mode) {
+  currentTestMode = mode;
+  const banner = document.getElementById('mode-banner');
+  const icon   = document.getElementById('mode-icon');
+  const text   = document.getElementById('mode-text');
+
+  // Set radio buttons to match
+  document.querySelectorAll('input[name="mode-override"]').forEach(r => {
+    r.checked = r.value === mode;
+  });
+
+  if (mode === 'hardware') {
+    banner.className = 'mode-banner hardware';
+    icon.textContent = '🔌';
+    text.textContent = 'Hardware test data — device was connected. Pain outcomes are valid for analysis.';
+    // Hide all software warnings
+    document.querySelectorAll('.software-warning').forEach(w => w.classList.remove('visible'));
+  } else {
+    banner.className = 'mode-banner software';
+    icon.textContent = '💻';
+    text.textContent = 'Software-only test data — no device connected (kDebugSkipBle = true). Pain outcomes and session timings should NOT be interpreted clinically.';
+    // Show warnings in Phase 1.2 and Phase 4.4
+    document.getElementById('p12-software-warning').classList.add('visible');
+    document.getElementById('p44-software-warning').classList.add('visible');
+  }
+}
+
+function toggleModeOverride() {
+  const panel = document.getElementById('mode-override-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('mode-override-btn').textContent =
+    panel.style.display === 'none' ? 'Change' : 'Close';
+}
+
+function applyModeOverride(mode) {
+  applyTestMode(mode);
+  // Collapse the override panel
+  document.getElementById('mode-override-panel').style.display = 'none';
+  document.getElementById('mode-override-btn').textContent = 'Change';
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────

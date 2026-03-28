@@ -4,6 +4,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../bluetooth/ble_constants.dart';
 import 'models/session_record.dart';
 
 class SessionRepository {
@@ -83,6 +84,7 @@ class SessionRepository {
 
     final payload = {
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'testMode': kDebugSkipBle ? 'software_only' : 'hardware',
       'sessionTimings': timings,
       'storage': {
         'sessionsCompleted': sessions.length,
