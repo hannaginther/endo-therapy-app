@@ -267,6 +267,22 @@
 
   /* ── Footer ── */
   footer { text-align: center; padding: 20px; font-size: 11px; color: #aaa; }
+
+  /* ── Import bar ── */
+  .import-bar {
+    background: var(--teal-lt);
+    border: 1px dashed var(--teal);
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .import-bar label { font-size: 13px; font-weight: 600; color: var(--teal-dk); }
+  .import-bar input[type=file] { font-size: 12px; }
+  #import-status { font-size: 12px; color: var(--teal-dk); font-style: italic; }
 </style>
 </head>
 <body>
@@ -280,6 +296,12 @@
 </header>
 
 <div class="container">
+
+  <div class="import-bar">
+    <label>📥 Import session data from app:</label>
+    <input type="file" id="json-import" accept=".json">
+    <span id="import-status"></span>
+  </div>
 
   <!-- ══ SUMMARY ROW ══════════════════════════════════════════════════════════ -->
   <div style="margin: 24px 0 8px; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Overall Phase Status</div>
@@ -1180,6 +1202,61 @@ function updatePhaseCard(n, status) {
   else { card.classList.add('pending-card'); result.textContent = '—'; }
 }
 
+// ─── IMPORT ──────────────────────────────────────────────────────────────────
+function importDashboardJson(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      const status = document.getElementById('import-status');
+
+      // ── Phase 1.2: Session Timings ──────────────────────────────────────
+      // Populates sd-1 through sd-5 (up to 5 trials)
+      const timings = (data.sessionTimings || []).slice(0, 5);
+      timings.forEach((v, i) => {
+        const el = document.getElementById(`sd-${i + 1}`);
+        if (el) el.value = v;
+      });
+      // Clear unused trial fields
+      for (let i = timings.length + 1; i <= 5; i++) {
+        const el = document.getElementById(`sd-${i}`);
+        if (el) el.value = '';
+      }
+      if (timings.length > 0) updateSessionTiming();
+
+      // ── Phase 4.1: Storage Integrity ────────────────────────────────────
+      if (data.storage) {
+        const s = data.storage;
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        setVal('db-total',        s.sessionsCompleted ?? 0);
+        setVal('db-stored',       s.sessionsStored    ?? 0);
+        setVal('db-fields-total', s.fieldsChecked     ?? 0);
+        setVal('db-fields-pass',  s.fieldsPassed      ?? 0);
+        setVal('db-nulls',        s.nullIdsFound      ?? 0);
+        updateStorage();
+      }
+
+      // ── Phase 4.4: Pain Outcomes ─────────────────────────────────────────
+      if (Array.isArray(data.sessions) && data.sessions.length > 0) {
+        const lines = data.sessions.map(s =>
+          `${s.initialPain},${s.finalPain},${s.exerciseType || 'none'}`
+        ).join('\n');
+        const ta = document.getElementById('session-data');
+        if (ta) ta.value = lines;
+        updateSessionOutcomes();
+      }
+
+      const dt = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : 'unknown time';
+      status.textContent = `✓ Imported ${(data.sessions || []).length} session(s) exported at ${dt}`;
+      status.style.color = 'var(--green)';
+    } catch (err) {
+      document.getElementById('import-status').textContent = '✗ Could not parse file: ' + err.message;
+      document.getElementById('import-status').style.color = 'var(--red)';
+    }
+  };
+  reader.readAsText(file);
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 buildFlowChecklist();
 
@@ -1194,6 +1271,9 @@ window.addEventListener('load', () => {
   updateSessionOutcomes();
   updateIntegration();
   updateSpecAlignment();
+  document.getElementById('json-import').addEventListener('change', function() {
+    if (this.files && this.files[0]) importDashboardJson(this.files[0]);
+  });
 });
 </script>
 </body>

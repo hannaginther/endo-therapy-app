@@ -2,7 +2,7 @@
 */
 
 // Debug mode for testing
-const bool kDebugSkipBle = false;
+const bool kDebugSkipBle = true;
 
 
 class BleConstants {
