@@ -13,6 +13,9 @@ dependencies:
   flutter_blue_plus: ^1.31.0   # BLE core — scan, connect, read/write
   permission_handler: ^11.0.0  # Runtime permissions for Android BLE
   provider: ^6.1.0             # Lightweight state management
+  sqflite: ^2.3.0
+  path: ^1.9.0
+  uuid: ^4.3.3
 
 dev_dependencies:
   flutter_test:

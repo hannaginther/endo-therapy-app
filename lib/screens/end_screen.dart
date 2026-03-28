@@ -8,17 +8,29 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../bluetooth/ble_manager.dart';
 import '../bluetooth/ble_constants.dart';
+import '../data/models/session_record.dart';
+import '../providers/session_history_provider.dart';
 import 'exercise_selection_screen.dart';
 import 'session_complete_screen.dart';
 
 class EndScreen extends StatefulWidget {
   final int initialPain;
   final int sessionNumber;
+  final String exerciseType;
+  final DateTime startedAt;
+  final int actualDurationSeconds;
+  final bool endedEarly;
+  final String? safetyEvent;
 
   const EndScreen({
     super.key,
     required this.initialPain,
     required this.sessionNumber,
+    required this.exerciseType,
+    required this.startedAt,
+    required this.actualDurationSeconds,
+    required this.endedEarly,
+    this.safetyEvent,
   });
 
   @override
@@ -27,6 +39,7 @@ class EndScreen extends StatefulWidget {
 
 class _EndScreenState extends State<EndScreen> {
   int _finalPain = 1;
+  bool _isSubmitting = false;
 
   final Map<int, String> _painLabels = {
     1: 'Minimal pain',
@@ -41,10 +54,28 @@ class _EndScreenState extends State<EndScreen> {
     10: 'Worst possible pain',
   };
 
-  void _submitFinalPain(BuildContext context) {
+  Future<void> _submitFinalPain(BuildContext context) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
     final ble = context.read<BleManager>();
     // Check against current session count (already incremented by _endSession)
     final bool canRepeat = ble.sessionCount < BleSessionLimits.maxSessionsPerUse;
+
+    final record = SessionRecord.create(
+      startedAt: widget.startedAt,
+      endedAt: DateTime.now(),
+      initialPain: widget.initialPain,
+      finalPain: _finalPain,
+      exerciseType: widget.exerciseType,
+      actualDurationSeconds: widget.actualDurationSeconds,
+      endedEarly: widget.endedEarly,
+      safetyEvent: widget.safetyEvent,
+      sessionNumberInCycle: widget.sessionNumber,
+    );
+    await context.read<SessionHistoryProvider>().saveSession(record);
+
+    if (!context.mounted) return;
 
     if (_finalPain < widget.initialPain) {
       // Pain decreased — navigate directly to success screen
@@ -165,7 +196,7 @@ class _EndScreenState extends State<EndScreen> {
               const SizedBox(height: 48),
 
               ElevatedButton(
-                onPressed: () => _submitFinalPain(context),
+                onPressed: _isSubmitting ? null : () => _submitFinalPain(context),
                 child: const Text('Submit'),
               ),
             ],

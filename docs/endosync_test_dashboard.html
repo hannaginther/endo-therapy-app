@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EndoSync — Test Results Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --teal: #2A7F7F;
+    --teal-lt: #D6EEEE;
+    --teal-dk: #1a5252;
+    --amber: #E67E22;
+    --amber-lt: #FCF3E8;
+    --green: #27AE60;
+    --green-lt: #E9F7EF;
+    --red: #C0392B;
+    --red-lt: #FDEDEC;
+    --blue: #1F618D;
+    --blue-lt: #D6EAF8;
+    --purple: #8E44AD;
+    --purple-lt: #F4ECF7;
+    --gray: #4A4A4A;
+    --gray-lt: #F5F5F5;
+    --white: #ffffff;
+    --border: #E0E0E0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #F0F4F4;
+    color: var(--gray);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--teal);
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+  header p  { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+  .header-badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  /* ── Layout ── */
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px 24px 60px; }
+
+  /* ── Summary Cards ── */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .summary-card {
+    background: white;
+    border-radius: 10px;
+    padding: 16px;
+    border-top: 4px solid var(--teal);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  .summary-card .phase-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .summary-card .phase-result { font-size: 22px; font-weight: 700; }
+  .summary-card .phase-sub { font-size: 11px; color: #888; margin-top: 4px; }
+  .pass   { color: var(--green); border-top-color: var(--green) !important; }
+  .fail   { color: var(--red);   border-top-color: var(--red)   !important; }
+  .partial{ color: var(--amber); border-top-color: var(--amber) !important; }
+  .pending-card { color: #bbb; border-top-color: #ddd !important; }
+
+  /* ── Section Headers ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 32px 0 16px;
+  }
+  .section-tag {
+    background: var(--teal);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--teal-dk); }
+
+  /* ── Cards ── */
+  .card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gray);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .chart-single { max-width: 680px; margin: 0 auto; }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap-tall { position: relative; height: 320px; }
+
+  /* ── Data Entry ── */
+  .data-panel {
+    background: var(--gray-lt);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+  }
+  .data-panel h4 { font-size: 12px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .input-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .input-group label { font-size: 11px; color: #666; font-weight: 600; }
+  .input-group input, .input-group select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    width: 110px;
+    transition: border-color 0.15s;
+  }
+  .input-group input:focus, .input-group select:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 2px var(--teal-lt);
+  }
+  .input-group input.wide { width: 220px; }
+  textarea.data-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Courier New', monospace;
+    resize: vertical;
+    background: white;
+    transition: border-color 0.15s;
+    min-height: 60px;
+  }
+  textarea.data-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-lt); }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--teal); color: white; }
+  .btn-primary:hover { background: var(--teal-dk); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-outline { background: white; color: var(--teal); border: 1px solid var(--teal); }
+  .btn-outline:hover { background: var(--teal-lt); }
+  .btn-danger { background: var(--red); color: white; }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--gray-lt);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+  .stat-box .stat-val { font-size: 20px; font-weight: 700; color: var(--teal); }
+  .stat-box .stat-lbl { font-size: 11px; color: #888; margin-top: 2px; }
+  .stat-box.good .stat-val { color: var(--green); }
+  .stat-box.warn .stat-val { color: var(--amber); }
+  .stat-box.bad  .stat-val { color: var(--red); }
+
+  /* ── Pass/Fail Table ── */
+  .pf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .pf-table th {
+    background: var(--teal);
+    color: white;
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .pf-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .pf-table tr:nth-child(even) td { background: var(--gray-lt); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-pass    { background: var(--green-lt);  color: var(--green); }
+  .badge-fail    { background: var(--red-lt);    color: var(--red); }
+  .badge-partial { background: var(--amber-lt);  color: var(--amber); }
+  .badge-pending { background: var(--gray-lt);   color: #999; }
+
+  /* ── Phase toggle tabs ── */
+  .tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab {
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    background: white;
+    color: #888;
+    transition: all 0.15s;
+  }
+  .tab.active { border-color: var(--teal); background: var(--teal); color: white; }
+  .tab:hover:not(.active) { border-color: var(--teal); color: var(--teal); }
+
+  /* ── Phase panels ── */
+  .phase-panel { display: none; }
+  .phase-panel.active { display: block; }
+
+  /* ── Tooltip ── */
+  .tooltip-info { font-size: 11px; color: #999; font-style: italic; }
+
+  /* ── Spec alignment callout ── */
+  .callout {
+    border-left: 4px solid var(--amber);
+    background: var(--amber-lt);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .callout.green { border-color: var(--green); background: var(--green-lt); }
+  .callout strong { display: block; margin-bottom: 4px; color: var(--amber); }
+  .callout.green strong { color: var(--green); }
+
+  /* ── Footer ── */
+  footer { text-align: center; padding: 20px; font-size: 11px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>EndoSync — Test Results Dashboard</h1>
+    <p>BMEN 668 · Group 14 · Verification Protocol v1.0</p>
+  </div>
+  <div class="header-badge">Enter data below · Charts update automatically</div>
+</header>
+
+<div class="container">
+
+  <!-- ══ SUMMARY ROW ══════════════════════════════════════════════════════════ -->
+  <div style="margin: 24px 0 8px; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Overall Phase Status</div>
+  <div class="summary-row">
+    <div class="summary-card pending-card" id="card-p1">
+      <div class="phase-label">Phase 1</div>
+      <div class="phase-result" id="result-p1">—</div>
+      <div class="phase-sub">Safety & Thermal</div>
+    </div>
+    <div class="summary-card pending-card" id="card-p2">
+      <div class="phase-label">Phase 2</div>
+      <div class="phase-result" id="result-p2">—</div>
+      <div class="phase-sub">BLE Reliability</div>
+    </div>
+    <div class="summary-card pending-card" id="card-p3">
+      <div class="phase-label">Phase 3</div>
+      <div class="phase-result" id="result-p3">—</div>
+      <div class="phase-sub">App Flow</div>
+    </div>
+    <div class="summary-card pending-card" id="card-p4">
+      <div class="phase-label">Phase 4</div>
+      <div class="phase-result" id="result-p4">—</div>
+      <div class="phase-sub">Data Storage</div>
+    </div>
+    <div class="summary-card pending-card" id="card-p5">
+      <div class="phase-label">Phase 5</div>
+      <div class="phase-result" id="result-p5">—</div>
+      <div class="phase-sub">Integration</div>
+    </div>
+  </div>
+
+  <!-- ══ PHASE TABS ══════════════════════════════════════════════════════════ -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(1)">Phase 1 — Thermal</div>
+    <div class="tab" onclick="switchTab(2)">Phase 2 — BLE</div>
+    <div class="tab" onclick="switchTab(3)">Phase 3 — App Flow</div>
+    <div class="tab" onclick="switchTab(4)">Phase 4 — Data Storage</div>
+    <div class="tab" onclick="switchTab(5)">Phase 5 — Integration</div>
+    <div class="tab" onclick="switchTab(6)">Spec Alignment</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PHASE 1 — SAFETY & THERMAL
+  ══════════════════════════════════════════════════════════════════════════════ -->
+  <div class="phase-panel active" id="panel-1">
+    <div class="section-header">
+      <span class="section-tag">Phase 1</span>
+      <span class="section-title">Safety & Thermal Performance</span>
+    </div>
+
+    <!-- 1.1 Temperature Time-Series -->
+    <div class="card">
+      <div class="card-title">
+        1.1 Temperature Steady-State (MCP9808 Readings)
+        <span class="tooltip-info">Target: 38–42 °C ±1 °C</span>
+      </div>
+      <div class="data-panel">
+        <h4>Enter Temperature Data</h4>
+        <p style="font-size:12px;color:#666;margin-bottom:10px">Paste comma-separated readings (°C) per trial. Each row = one trial (readings every 30s for 10 min = ~20 readings).</p>
+        <div style="display:grid;gap:8px">
+          <div class="input-group"><label>Trial 1 (°C, comma-separated)</label><textarea class="data-input" id="t1-temps" placeholder="39.2, 39.8, 40.1, 40.3, 40.5, 40.6, 40.7, 40.8, 40.8, 40.9"></textarea></div>
+          <div class="input-group"><label>Trial 2</label><textarea class="data-input" id="t2-temps" placeholder="38.9, 39.5, 40.0, 40.2, 40.4, 40.5, 40.6, 40.7, 40.8, 40.8"></textarea></div>
+          <div class="input-group"><label>Trial 3</label><textarea class="data-input" id="t3-temps" placeholder="39.5, 40.0, 40.3, 40.5, 40.6, 40.7, 40.8, 40.9, 41.0, 41.0"></textarea></div>
+          <div class="input-group"><label>Trial 4 (optional)</label><textarea class="data-input" id="t4-temps" placeholder=""></textarea></div>
+          <div class="input-group"><label>Trial 5 (optional)</label><textarea class="data-input" id="t5-temps" placeholder=""></textarea></div>
+          <div class="input-row" style="margin-top:8px">
+            <div class="input-group"><label>Cutoff temps triggered (°C, comma-sep)</label><input type="text" id="cutoff-temps" placeholder="41.8, 42.0, 41.9" class="wide"></div>
+            <button class="btn btn-primary" onclick="updateThermal()">Update Charts</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="thermal-stats" class="stats-row" style="display:none">
+        <div class="stat-box" id="ts-mean"><div class="stat-val" id="ts-mean-v">—</div><div class="stat-lbl">Mean Temp (°C)</div></div>
+        <div class="stat-box" id="ts-sd"><div class="stat-val" id="ts-sd-v">—</div><div class="stat-lbl">Std Dev (°C)</div></div>
+        <div class="stat-box" id="ts-minmax"><div class="stat-val" id="ts-minmax-v">—</div><div class="stat-lbl">Min / Max (°C)</div></div>
+        <div class="stat-box" id="ts-cutoff"><div class="stat-val" id="ts-cutoff-v">—</div><div class="stat-lbl">Mean Cutoff (°C)</div></div>
+      </div>
+
+      <div class="chart-grid">
+        <div><div class="chart-wrap"><canvas id="chart-temp-series"></canvas></div><p class="tooltip-info" style="text-align:center;margin-top:6px">Temperature over time — all trials overlaid</p></div>
+        <div><div class="chart-wrap"><canvas id="chart-temp-dist"></canvas></div><p class="tooltip-info" style="text-align:center;margin-top:6px">Distribution of all readings (histogram)</p></div>
+      </div>
+    </div>
+
+    <!-- 1.2 Session Timing -->
+    <div class="card">
+      <div class="card-title">
+        1.2 Session Auto-Termination Timing
+        <span class="tooltip-info">Target: 600 s ±2 s</span>
+      </div>
+      <div class="data-panel">
+        <h4>Session Duration Data</h4>
+        <div class="input-row">
+          <div class="input-group"><label>Trial 1 (s)</label><input type="number" id="sd-1" placeholder="601"></div>
+          <div class="input-group"><label>Trial 2 (s)</label><input type="number" id="sd-2" placeholder="600"></div>
+          <div class="input-group"><label>Trial 3 (s)</label><input type="number" id="sd-3" placeholder="599"></div>
+          <div class="input-group"><label>Trial 4 (s)</label><input type="number" id="sd-4" placeholder="601"></div>
+          <div class="input-group"><label>Trial 5 (s)</label><input type="number" id="sd-5" placeholder="600"></div>
+          <div class="input-group"><label>BLE Timeout (s)</label><input type="number" id="ble-timeout" placeholder="663"></div>
+          <button class="btn btn-primary" onclick="updateSessionTiming()">Update</button>
+        </div>
+      </div>
+      <div id="timing-stats" class="stats-row" style="display:none">
+        <div class="stat-box" id="st-mean"><div class="stat-val" id="st-mean-v">—</div><div class="stat-lbl">Mean Duration (s)</div></div>
+        <div class="stat-box" id="st-delta"><div class="stat-val" id="st-delta-v">—</div><div class="stat-lbl">Max Delta from 600s</div></div>
+        <div class="stat-box" id="st-pass"><div class="stat-val" id="st-pass-v">—</div><div class="stat-lbl">Trials within ±2s</div></div>
+        <div class="stat-box" id="st-ble"><div class="stat-val" id="st-ble-v">—</div><div class="stat-lbl">BLE Timeout (s)</div></div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-session-timing"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PHASE 2 — BLE
+  ══════════════════════════════════════════════════════════════════════════════ -->
+  <div class="phase-panel" id="panel-2">
+    <div class="section-header">
+      <span class="section-tag">Phase 2</span>
+      <span class="section-title">BLE Communication Reliability & Latency</span>
+    </div>
+
+    <!-- 2.1 Connection Latency -->
+    <div class="card">
+      <div class="card-title">
+        2.1 Connection Establishment Latency (20 Trials)
+        <span class="tooltip-info">Advertising ≤2s · Connection ≤10s</span>
+      </div>
+      <div class="data-panel">
+        <h4>Enter Latency Data (milliseconds)</h4>
+        <div style="display:grid;gap:8px">
+          <div class="input-group"><label>Advertising latency — 20 values (ms, comma-sep)</label><textarea class="data-input" id="adv-latency" placeholder="1100, 980, 1250, 1050, 890, 1300, 1100, 1020, 1180, 950, 1080, 1230, 1010, 1150, 990, 1200, 1070, 930, 1140, 1060"></textarea></div>
+          <div class="input-group"><label>Connection latency — 20 values (ms, comma-sep)</label><textarea class="data-input" id="conn-latency" placeholder="4200, 3800, 5100, 4500, 3600, 4900, 4100, 3900, 4700, 4000, 4300, 5000, 3700, 4600, 4200, 4800, 4100, 3800, 4400, 4600"></textarea></div>
+          <button class="btn btn-primary btn-sm" style="width:fit-content" onclick="updateBLELatency()">Update Charts</button>
+        </div>
+      </div>
+      <div id="ble-stats" class="stats-row" style="display:none">
+        <div class="stat-box" id="bl-adv-mean"><div class="stat-val" id="bl-adv-mean-v">—</div><div class="stat-lbl">Adv Mean (ms)</div></div>
+        <div class="stat-box" id="bl-adv-p95"><div class="stat-val" id="bl-adv-p95-v">—</div><div class="stat-lbl">Adv 95th Pct (ms)</div></div>
+        <div class="stat-box" id="bl-conn-mean"><div class="stat-val" id="bl-conn-mean-v">—</div><div class="stat-lbl">Conn Mean (ms)</div></div>
+        <div class="stat-box" id="bl-conn-p95"><div class="stat-val" id="bl-conn-p95-v">—</div><div class="stat-lbl">Conn 95th Pct (ms)</div></div>
+      </div>
+      <div class="chart-grid">
+        <div><div class="chart-wrap"><canvas id="chart-adv-latency"></canvas></div><p class="tooltip-info" style="text-align:center;margin-top:6px">Advertising latency distribution (target ≤2000ms)</p></div>
+        <div><div class="chart-wrap"><canvas id="chart-conn-latency"></canvas></div><p class="tooltip-info" style="text-align:center;margin-top:6px">Connection latency distribution (target ≤10,000ms)</p></div>
+      </div>
+    </div>
+
+    <!-- 2.2 Command Success Rate -->
+    <div class="card">
+      <div class="card-title">
+        2.2 BLE Command Success Rate by Distance
+        <span class="tooltip-info">Target: ≥90% at ≤3m</span>
+      </div>
+      <div class="data-panel">
+        <h4>Success counts out of 10 trials per command per distance</h4>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:var(--teal);color:white">
+                <th style="padding:8px 10px;text-align:left">Command</th>
+                <th style="padding:8px 10px">@ 3m (/10)</th>
+                <th style="padding:8px 10px">@ 6m (/10)</th>
+                <th style="padding:8px 10px">@ 10m (/10)</th>
+              </tr>
+            </thead>
+            <tbody id="cmd-table-body">
+              <tr style="background:#f9f9f9"><td style="padding:6px 10px;font-weight:600">HEAT_ON</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="0" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="9" class="cmd-input" data-cmd="0" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="8" class="cmd-input" data-cmd="0" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+              <tr><td style="padding:6px 10px;font-weight:600">HEAT_OFF</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="1" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="1" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="9" class="cmd-input" data-cmd="1" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:6px 10px;font-weight:600">VIBRATE_ON</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="2" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="9" class="cmd-input" data-cmd="2" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="7" class="cmd-input" data-cmd="2" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+              <tr><td style="padding:6px 10px;font-weight:600">VIBRATE_OFF</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="3" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="3" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="8" class="cmd-input" data-cmd="3" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:6px 10px;font-weight:600">BOTH_ON</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="4" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="9" class="cmd-input" data-cmd="4" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="7" class="cmd-input" data-cmd="4" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+              <tr><td style="padding:6px 10px;font-weight:600">ALL_OFF</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="5" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="5" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="9" class="cmd-input" data-cmd="5" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:6px 10px;font-weight:600">READ_TEMP</td><td><input type="number" min="0" max="10" value="10" class="cmd-input" data-cmd="6" data-dist="0" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="9" class="cmd-input" data-cmd="6" data-dist="1" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td><td><input type="number" min="0" max="10" value="8" class="cmd-input" data-cmd="6" data-dist="2" style="width:55px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:fit-content;margin-top:10px" onclick="updateBLECommands()">Update Chart</button>
+      </div>
+      <div class="chart-wrap-tall"><canvas id="chart-ble-cmds"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PHASE 3 — APP FLOW
+  ══════════════════════════════════════════════════════════════════════════════ -->
+  <div class="phase-panel" id="panel-3">
+    <div class="section-header">
+      <span class="section-tag">Phase 3</span>
+      <span class="section-title">App UI & Session Flow</span>
+    </div>
+    <div class="card">
+      <div class="card-title">3.1 Pain Input Screen Appearance Latency</div>
+      <div class="data-panel">
+        <h4>Latency from "Connected" to Pain Slider visible (ms)</h4>
+        <div class="input-group"><label>10 readings (ms, comma-sep)</label><textarea class="data-input" id="pain-latency" placeholder="850, 920, 780, 900, 860, 810, 950, 840, 880, 820"></textarea></div>
+        <button class="btn btn-primary btn-sm" style="width:fit-content;margin-top:8px" onclick="updatePainLatency()">Update</button>
+      </div>
+      <div id="pain-lat-stats" class="stats-row" style="display:none">
+        <div class="stat-box"><div class="stat-val" id="pl-mean">—</div><div class="stat-lbl">Mean (ms)</div></div>
+        <div class="stat-box"><div class="stat-val" id="pl-p95">—</div><div class="stat-lbl">95th Pct (ms)</div></div>
+        <div class="stat-box"><div class="stat-val" id="pl-max">—</div><div class="stat-lbl">Max (ms)</div></div>
+        <div class="stat-box" id="pl-result"><div class="stat-val" id="pl-pass">—</div><div class="stat-lbl">vs 2000ms spec</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">3.2 Flow Verification Checklist</div>
+      <div class="callout">
+        <strong>Instructions</strong>
+        Check each step as you verify it. Set the outcome for each exercise mode you tested.
+      </div>
+      <div style="overflow-x:auto">
+        <table class="pf-table">
+          <thead><tr><th>Step</th><th>Expected</th><th>Breathing</th><th>Physical</th><th>Both</th><th>None</th></tr></thead>
+          <tbody id="flow-checklist">
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="allPass()">Mark All Pass</button>
+        <button class="btn btn-outline btn-sm" onclick="clearFlow()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PHASE 4 — DATA STORAGE
+  ══════════════════════════════════════════════════════════════════════════════ -->
+  <div class="phase-panel" id="panel-4">
+    <div class="section-header">
+      <span class="section-tag">Phase 4</span>
+      <span class="section-title">Data Storage Integrity</span>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        4.1 Session Record Completeness
+        <span class="tooltip-info">Spec: 100% stored, tolerance ≤5% loss</span>
+      </div>
+      <div class="data-panel">
+        <h4>Storage Verification Counts</h4>
+        <div class="input-row">
+          <div class="input-group"><label>Sessions completed</label><input type="number" id="db-total" value="20" min="1"></div>
+          <div class="input-group"><label>Sessions in DB</label><input type="number" id="db-stored" value="20" min="0"></div>
+          <div class="input-group"><label>Fields checked total</label><input type="number" id="db-fields-total" value="240" min="0"></div>
+          <div class="input-group"><label>Fields passed</label><input type="number" id="db-fields-pass" value="240" min="0"></div>
+          <div class="input-group"><label>NULL IDs found</label><input type="number" id="db-nulls" value="0" min="0"></div>
+          <button class="btn btn-primary" onclick="updateStorage()">Update</button>
+        </div>
+      </div>
+      <div id="storage-stats" class="stats-row" style="display:none">
+        <div class="stat-box" id="st-comp"><div class="stat-val" id="st-comp-v">—</div><div class="stat-lbl">Storage Rate</div></div>
+        <div class="stat-box" id="st-acc"><div class="stat-val" id="st-acc-v">—</div><div class="stat-lbl">Field Accuracy</div></div>
+        <div class="stat-box" id="st-null"><div class="stat-val" id="st-null-v">—</div><div class="stat-lbl">NULL IDs</div></div>
+        <div class="stat-box" id="st-verdict"><div class="stat-val" id="st-verdict-v">—</div><div class="stat-lbl">Spec Result</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">4.4 Pain Outcomes by Exercise Type</div>
+      <div class="data-panel">
+        <h4>Enter stored session data (paste each row as: initialPain,finalPain,exerciseType)</h4>
+        <textarea class="data-input" id="session-data" style="min-height:100px" placeholder="7,4,breathing&#10;6,5,physical&#10;8,3,both&#10;5,5,none&#10;7,6,breathing&#10;9,4,both&#10;6,7,physical&#10;8,5,breathing"></textarea>
+        <button class="btn btn-primary btn-sm" style="width:fit-content;margin-top:8px" onclick="updateSessionOutcomes()">Update Charts</button>
+      </div>
+      <div class="chart-grid">
+        <div><div class="chart-wrap-tall"><canvas id="chart-pain-scatter"></canvas></div><p class="tooltip-info" style="text-align:center;margin-top:6px">Initial vs. final pain — dot above diagonal = improvement</p></div>
+        <div><div class="chart-wrap-tall"><canvas id="chart-exercise-success"></canvas></div><p class="tooltip-info" style="text-align:center;margin-top:6px">Success rate by exercise type</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PHASE 5 — INTEGRATION
+  ══════════════════════════════════════════════════════════════════════════════ -->
+  <div class="phase-panel" id="panel-5">
+    <div class="section-header">
+      <span class="section-tag">Phase 5</span>
+      <span class="section-title">End-to-End Integration</span>
+    </div>
+    <div class="card">
+      <div class="card-title">5.x Integration Test Results</div>
+      <div class="data-panel">
+        <h4>Record outcomes for each integration test</h4>
+      </div>
+      <table class="pf-table">
+        <thead><tr><th>Test</th><th>Description</th><th>Trials</th><th>Passed</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>5.1</td><td>Full nominal session (happy path)</td>
+            <td><input type="number" class="cmd-input" id="int-51-trials" value="3" style="width:50px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center" min="0"></td>
+            <td><input type="number" class="cmd-input" id="int-51-pass" value="3" style="width:50px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center" min="0"></td>
+            <td id="int-51-result"><span class="badge badge-pending">Pending</span></td>
+          </tr>
+          <tr>
+            <td>5.2</td><td>Repeat session + cooldown cycle</td>
+            <td><input type="number" class="cmd-input" id="int-52-trials" value="3" style="width:50px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center" min="0"></td>
+            <td><input type="number" class="cmd-input" id="int-52-pass" value="3" style="width:50px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center" min="0"></td>
+            <td id="int-52-result"><span class="badge badge-pending">Pending</span></td>
+          </tr>
+          <tr>
+            <td>5.3</td><td>Stress test — 10 sessions, DB integrity</td>
+            <td><input type="number" class="cmd-input" id="int-53-trials" value="10" style="width:50px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center" min="0"></td>
+            <td><input type="number" class="cmd-input" id="int-53-pass" value="10" style="width:50px;padding:4px;border:1px solid #ddd;border-radius:4px;text-align:center" min="0"></td>
+            <td id="int-53-result"><span class="badge badge-pending">Pending</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <button class="btn btn-primary btn-sm" style="width:fit-content;margin-top:14px" onclick="updateIntegration()">Compute Results</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       SPEC ALIGNMENT
+  ══════════════════════════════════════════════════════════════════════════════ -->
+  <div class="phase-panel" id="panel-6">
+    <div class="section-header">
+      <span class="section-tag">Reference</span>
+      <span class="section-title">Spec Alignment: Proposal vs. Implementation</span>
+    </div>
+    <div class="callout">
+      <strong>⚠ Action Required Before Final Testing</strong>
+      The items below represent discrepancies between the project proposal technical specifications and the current firmware/app implementation. Resolve or formally document each item before submitting test results.
+    </div>
+    <div class="card">
+      <table class="pf-table">
+        <thead><tr><th>Spec (Proposal)</th><th>Implementation</th><th>Recommended Action</th><th>Priority</th><th>Resolved?</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Max temp: 45 °C (spec table)</td>
+            <td>Firmware cutoff: 42 °C (SAFETY:TEMP_HIGH)</td>
+            <td>Update spec to 42 °C — firmware is more conservative and safer</td>
+            <td><span class="badge badge-fail">HIGH</span></td>
+            <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
+          </tr>
+          <tr>
+            <td>Session duration: ≤20 min</td>
+            <td>App enforces 10 min (600 s). BLE timeout at 11 min.</td>
+            <td>Update spec to ≤10 min, or document 10 min as the prototype target</td>
+            <td><span class="badge badge-partial">MED</span></td>
+            <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
+          </tr>
+          <tr>
+            <td>Max 3 sessions before cooldown</td>
+            <td>App: maxSessionsPerUse = 2</td>
+            <td>Decide: 2 or 3? Update whichever is wrong to match</td>
+            <td><span class="badge badge-fail">HIGH</span></td>
+            <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
+          </tr>
+          <tr>
+            <td>Pain log transmitted within 15 s to paired device</td>
+            <td>Pain log saved to local SQLite DB on phone (no network)</td>
+            <td>Reframe spec as "local persistence" — phone IS the paired device</td>
+            <td><span class="badge badge-partial">MED</span></td>
+            <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
+          </tr>
+          <tr>
+            <td>UI appears ≤1 s after activation (tolerance ≤2 s)</td>
+            <td>Pain screen appears on user tap, not auto-advanced</td>
+            <td>Clarify spec: "user-initiated navigation" not auto-advance. Document.</td>
+            <td><span class="badge badge-pass">LOW</span></td>
+            <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div id="alignment-summary" style="margin-top:14px;font-size:13px;padding:10px;background:var(--gray-lt);border-radius:6px">
+        Resolved: <strong id="align-count">0 / 5</strong>
+      </div>
+    </div>
+
+    <!-- Full spec reference table -->
+    <div class="card">
+      <div class="card-title">Full Spec Reference (from Project Proposal)</div>
+      <table class="pf-table">
+        <thead><tr><th>Need</th><th>Specification</th><th>Target / Tolerance</th><th>Test Phase</th></tr></thead>
+        <tbody>
+          <tr><td>Safe therapeutic heat</td><td>Skin-contact temp 38–42 °C (firmware) / 38–45 °C (spec)</td><td>±1 °C · never exceed 42 °C</td><td>Phase 1.1</td></tr>
+          <tr><td>Prevent thermal injury</td><td>Auto-terminate heat ≤20 min; ≤3 consecutive sessions; 30 min cooldown</td><td>MAX 3 cycles</td><td>Phase 1.2, 1.3</td></tr>
+          <tr><td>Log pain onset & levels</td><td>Likert 1–10 scale appears ≤1 s (tolerance ≤2 s) after device activated</td><td>≤2 s</td><td>Phase 3.1</td></tr>
+          <tr><td>Data stored for clinical access</td><td>100% of session data (initial pain, exercises, length, final pain) securely stored</td><td>Tolerance ≤5% loss</td><td>Phase 4</td></tr>
+          <tr><td>Reliable symptom logging</td><td>≥90% of pain log entries transmitted within 15 s of submission</td><td>≥90% success · ≤15 s</td><td>Phase 2.2</td></tr>
+          <tr><td>Safe portable power</td><td>Draw ≤5.0 A continuous; auto-disable below 6.0 V ±0.2 V</td><td>I_max ≤5.0 A · V_cutoff = 6.0 V</td><td>Phase 1 (hardware)</td></tr>
+          <tr><td>Discreet wearability</td><td>Belt ≤50 mm thick, ≤500 g</td><td>≤50 mm / ≤500 g</td><td>Physical measurement</td></tr>
+          <tr><td>Easy wear/removal</td><td>≥80% of untrained users can don/doff in ≤30 s without assistance</td><td>≥80% success rate</td><td>Usability study</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<footer>EndoSync Test Dashboard · BMEN 668 Group 14 · Data entered here is stored only in your browser session</footer>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+let charts = {};
+let phaseResults = { 1: null, 2: null, 3: null, 4: null, 5: null };
+
+// ─── Tab switching ───────────────────────────────────────────────────────────
+function switchTab(n) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === n - 1));
+  document.querySelectorAll('.phase-panel').forEach((p, i) => p.classList.toggle('active', i === n - 1));
+}
+
+// ─── Stat helpers ────────────────────────────────────────────────────────────
+function mean(arr) { return arr.reduce((a,b) => a+b, 0) / arr.length; }
+function std(arr) {
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((a,b) => a + (b-m)**2, 0) / arr.length);
+}
+function pct(arr, p) {
+  const s = [...arr].sort((a,b) => a-b);
+  const i = Math.ceil(p / 100 * s.length) - 1;
+  return s[Math.max(0, i)];
+}
+function parseCSV(str) {
+  return str.split(',').map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
+}
+function fmt(v, d=1) { return isNaN(v) ? '—' : v.toFixed(d); }
+function setStatBox(idVal, val, idClass, pass) {
+  document.getElementById(idVal).textContent = val;
+  const box = document.getElementById(idClass);
+  if (box && pass !== undefined) {
+    box.classList.toggle('good', pass === true);
+    box.classList.toggle('bad', pass === false);
+    box.classList.toggle('warn', pass === null);
+  }
+}
+
+// ─── Colour helpers ──────────────────────────────────────────────────────────
+const TEAL = '#2A7F7F'; const TEAL_LT = '#A8D4D4';
+const GREEN = '#27AE60'; const GREEN_LT = '#A9DFBF';
+const RED   = '#C0392B'; const RED_LT   = '#F1948A';
+const AMBER = '#E67E22'; const AMBER_LT = '#F0B27A';
+const BLUE  = '#1F618D'; const BLUE_LT  = '#7FB3D3';
+const PURPLE= '#8E44AD'; const PURPLE_LT= '#C39BD3';
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+// ─── PHASE 1: THERMAL ────────────────────────────────────────────────────────
+function updateThermal() {
+  const rawTrials = [
+    document.getElementById('t1-temps').value,
+    document.getElementById('t2-temps').value,
+    document.getElementById('t3-temps').value,
+    document.getElementById('t4-temps').value,
+    document.getElementById('t5-temps').value,
+  ].map(s => parseCSV(s)).filter(a => a.length > 0);
+
+  if (!rawTrials.length) return;
+
+  const allTemps = rawTrials.flat();
+  const m = mean(allTemps);
+  const s = std(allTemps);
+  const mn = Math.min(...allTemps);
+  const mx = Math.max(...allTemps);
+
+  const cutoffs = parseCSV(document.getElementById('cutoff-temps').value);
+  const cutMean = cutoffs.length ? mean(cutoffs) : NaN;
+
+  document.getElementById('thermal-stats').style.display = 'grid';
+  setStatBox('ts-mean-v', fmt(m) + ' °C', 'ts-mean', m >= 38 && m <= 42);
+  setStatBox('ts-sd-v', '±' + fmt(s) + ' °C', 'ts-sd', s <= 1);
+  setStatBox('ts-minmax-v', fmt(mn,1) + ' / ' + fmt(mx,1), 'ts-minmax', mn >= 37 && mx <= 43);
+  setStatBox('ts-cutoff-v', fmt(cutMean) + ' °C', 'ts-cutoff', cutMean <= 42);
+
+  // Line chart — all trials
+  const maxLen = Math.max(...rawTrials.map(t => t.length));
+  const labels = Array.from({length: maxLen}, (_, i) => i * 30 + 's');
+  const colors = [TEAL, GREEN, BLUE, AMBER, PURPLE];
+
+  destroyChart('temp-series');
+  charts['temp-series'] = new Chart(document.getElementById('chart-temp-series'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        ...rawTrials.map((trial, i) => ({
+          label: `Trial ${i+1}`,
+          data: trial,
+          borderColor: colors[i % colors.length],
+          backgroundColor: 'transparent',
+          tension: 0.3, pointRadius: 3, borderWidth: 2,
+        })),
+        { label: '38°C Min', data: Array(maxLen).fill(38), borderColor: '#aaa', borderDash: [4,4], pointRadius: 0, borderWidth: 1 },
+        { label: '42°C Max (fw)', data: Array(maxLen).fill(42), borderColor: RED, borderDash: [4,4], pointRadius: 0, borderWidth: 1.5 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        y: { min: 35, max: 46, title: { display: true, text: 'Temperature (°C)' } },
+        x: { title: { display: true, text: 'Elapsed Time' } }
+      }
+    }
+  });
+
+  // Histogram
+  const bins = Array.from({length: 14}, (_, i) => 35.5 + i * 0.5);
+  const counts = bins.map((b, i) => allTemps.filter(t => t >= b && t < b + 0.5).length);
+
+  destroyChart('temp-dist');
+  charts['temp-dist'] = new Chart(document.getElementById('chart-temp-dist'), {
+    type: 'bar',
+    data: {
+      labels: bins.map(b => b.toFixed(1)),
+      datasets: [{
+        label: 'Reading Count',
+        data: counts,
+        backgroundColor: bins.map(b => b >= 38 && b < 42 ? GREEN_LT : RED_LT),
+        borderColor: bins.map(b => b >= 38 && b < 42 ? GREEN : RED),
+        borderWidth: 1.5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: 'Temperature (°C)' } },
+        y: { title: { display: true, text: 'Count' }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Update phase status
+  const pass = m >= 38 && m <= 42 && mx <= 43 && (isNaN(cutMean) || cutMean <= 42);
+  updatePhaseCard(1, pass ? 'PASS' : 'FAIL');
+}
+
+// ─── PHASE 1.2: Session Timing ───────────────────────────────────────────────
+function updateSessionTiming() {
+  const vals = [1,2,3,4,5].map(i => parseFloat(document.getElementById(`sd-${i}`).value)).filter(v => !isNaN(v));
+  const bleT = parseFloat(document.getElementById('ble-timeout').value);
+  if (!vals.length) return;
+
+  const m = mean(vals);
+  const maxDelta = Math.max(...vals.map(v => Math.abs(v - 600)));
+  const within = vals.filter(v => Math.abs(v - 600) <= 2).length;
+
+  document.getElementById('timing-stats').style.display = 'grid';
+  setStatBox('st-mean-v', fmt(m) + 's', 'st-mean', Math.abs(m - 600) <= 2);
+  setStatBox('st-delta-v', '±' + fmt(maxDelta) + 's', 'st-delta', maxDelta <= 2);
+  setStatBox('st-pass-v', `${within}/${vals.length}`, 'st-pass', within === vals.length);
+  setStatBox('st-ble-v', isNaN(bleT) ? '—' : bleT + 's', 'st-ble', !isNaN(bleT) && bleT >= 645 && bleT <= 675);
+
+  destroyChart('session-timing');
+  charts['session-timing'] = new Chart(document.getElementById('chart-session-timing'), {
+    type: 'bar',
+    data: {
+      labels: vals.map((_, i) => `Trial ${i+1}`),
+      datasets: [{
+        label: 'Actual Duration (s)',
+        data: vals,
+        backgroundColor: vals.map(v => Math.abs(v-600) <= 2 ? GREEN_LT : RED_LT),
+        borderColor: vals.map(v => Math.abs(v-600) <= 2 ? GREEN : RED),
+        borderWidth: 2,
+      }, {
+        label: 'Target (600s)',
+        data: Array(vals.length).fill(600),
+        type: 'line',
+        borderColor: TEAL,
+        borderDash: [6,3],
+        pointRadius: 0,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        y: { min: 594, max: 608, title: { display: true, text: 'Duration (seconds)' } }
+      }
+    }
+  });
+}
+
+// ─── PHASE 2: BLE LATENCY ────────────────────────────────────────────────────
+function updateBLELatency() {
+  const adv  = parseCSV(document.getElementById('adv-latency').value);
+  const conn = parseCSV(document.getElementById('conn-latency').value);
+  if (!adv.length || !conn.length) return;
+
+  const advMean = mean(adv), advP95 = pct(adv, 95);
+  const connMean = mean(conn), connP95 = pct(conn, 95);
+
+  document.getElementById('ble-stats').style.display = 'grid';
+  setStatBox('bl-adv-mean-v', fmt(advMean,0) + 'ms', 'bl-adv-mean', advMean <= 2000);
+  setStatBox('bl-adv-p95-v', fmt(advP95,0) + 'ms', 'bl-adv-p95', advP95 <= 2500);
+  setStatBox('bl-conn-mean-v', fmt(connMean,0) + 'ms', 'bl-conn-mean', connMean <= 10000);
+  setStatBox('bl-conn-p95-v', fmt(connP95,0) + 'ms', 'bl-conn-p95', connP95 <= 11000);
+
+  function makeBox(data, label, limit, color) {
+    const s = [...data].sort((a,b) => a-b);
+    return {
+      label, data: s,
+      backgroundColor: color + '33',
+      borderColor: color,
+      borderWidth: 1.5,
+      pointRadius: 3,
+      pointBackgroundColor: data.map(v => v > limit ? RED : color),
+    };
+  }
+
+  destroyChart('adv-latency');
+  charts['adv-latency'] = new Chart(document.getElementById('chart-adv-latency'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Advertising Latency (ms)',
+        data: adv.map((v,i) => ({ x: i+1, y: v })),
+        backgroundColor: adv.map(v => v > 2000 ? RED_LT : TEAL_LT),
+        borderColor: adv.map(v => v > 2000 ? RED : TEAL),
+        pointRadius: 6,
+      }, {
+        label: 'Limit (2000ms)',
+        data: [{x:0,y:2000},{x:adv.length+1,y:2000}],
+        type: 'line', borderColor: RED, borderDash: [5,3], pointRadius: 0, borderWidth: 1.5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        x: { title: { display: true, text: 'Trial #' }, min: 0 },
+        y: { title: { display: true, text: 'Latency (ms)' }, beginAtZero: true }
+      }
+    }
+  });
+
+  destroyChart('conn-latency');
+  charts['conn-latency'] = new Chart(document.getElementById('chart-conn-latency'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Connection Latency (ms)',
+        data: conn.map((v,i) => ({ x: i+1, y: v })),
+        backgroundColor: conn.map(v => v > 10000 ? RED_LT : BLUE_LT),
+        borderColor: conn.map(v => v > 10000 ? RED : BLUE),
+        pointRadius: 6,
+      }, {
+        label: 'Limit (10,000ms)',
+        data: [{x:0,y:10000},{x:conn.length+1,y:10000}],
+        type: 'line', borderColor: RED, borderDash: [5,3], pointRadius: 0, borderWidth: 1.5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        x: { title: { display: true, text: 'Trial #' }, min: 0 },
+        y: { title: { display: true, text: 'Latency (ms)' }, beginAtZero: true }
+      }
+    }
+  });
+
+  updatePhaseCard(2, advP95 <= 2500 && connP95 <= 11000 ? 'PASS' : 'FAIL');
+}
+
+function updateBLECommands() {
+  const commands = ['HEAT_ON','HEAT_OFF','VIBRATE_ON','VIBRATE_OFF','BOTH_ON','ALL_OFF','READ_TEMP'];
+  const distances = ['3m','6m','10m'];
+  const inputs = document.querySelectorAll('.cmd-input[data-cmd]');
+  const data = commands.map((c, ci) =>
+    distances.map((d, di) => {
+      const inp = document.querySelector(`.cmd-input[data-cmd="${ci}"][data-dist="${di}"]`);
+      return inp ? parseInt(inp.value) || 0 : 0;
+    })
+  );
+
+  destroyChart('ble-cmds');
+  charts['ble-cmds'] = new Chart(document.getElementById('chart-ble-cmds'), {
+    type: 'bar',
+    data: {
+      labels: commands,
+      datasets: distances.map((d, di) => ({
+        label: `@ ${d}`,
+        data: data.map(r => r[di] * 10),
+        backgroundColor: [TEAL_LT, BLUE_LT, AMBER_LT][di],
+        borderColor: [TEAL, BLUE, AMBER][di],
+        borderWidth: 1.5,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } }
+      },
+      scales: {
+        y: {
+          min: 0, max: 100,
+          title: { display: true, text: 'Success Rate (%)' },
+          afterDataLimits: chart => { chart.max = 100; },
+        }
+      }
+    }
+  });
+
+  // Add reference line annotation manually with plugin
+  const allAt3m = data.map(r => r[0] * 10);
+  const pass = allAt3m.every(v => v >= 90);
+  updatePhaseCard(2, pass ? 'PASS' : (allAt3m.every(v => v >= 70) ? 'PARTIAL' : 'FAIL'));
+}
+
+// ─── PHASE 3 ─────────────────────────────────────────────────────────────────
+function updatePainLatency() {
+  const vals = parseCSV(document.getElementById('pain-latency').value);
+  if (!vals.length) return;
+  const m = mean(vals), p95 = pct(vals, 95), mx = Math.max(...vals);
+  document.getElementById('pain-lat-stats').style.display = 'grid';
+  document.getElementById('pl-mean').textContent = fmt(m,0) + 'ms';
+  document.getElementById('pl-p95').textContent = fmt(p95,0) + 'ms';
+  document.getElementById('pl-max').textContent = fmt(mx,0) + 'ms';
+  const pass = p95 <= 2000;
+  document.getElementById('pl-pass').textContent = pass ? 'PASS' : 'FAIL';
+  document.getElementById('pl-result').className = `stat-box ${pass?'good':'bad'}`;
+}
+
+const flowSteps = [
+  ['Set initial pain slider', 'N visible on slider (1–10)'],
+  ['Tap Continue', 'Exercise selection screen appears'],
+  ['Select exercise mode, tap Start', 'Session screen; countdown at 10:00'],
+  ['Tap Start Session', 'BOTH_ON sent; device active'],
+  ['Wait for expiry OR tap End Early', 'ALL_OFF sent; EndScreen shown'],
+  ['Set final pain lower', 'Success screen shows initial/final pain'],
+  ['Set final pain same/higher (session 1)', '"Try Again?" dialog shown'],
+  ['Set final pain same/higher (session 2)', 'Session limit dialog; no retry'],
+  ['Check History screen', 'Record appears with correct data'],
+];
+
+function buildFlowChecklist() {
+  const tbody = document.getElementById('flow-checklist');
+  tbody.innerHTML = '';
+  flowSteps.forEach((step, i) => {
+    const tr = document.createElement('tr');
+    if (i % 2 === 0) tr.style.background = '#f9f9f9';
+    tr.innerHTML = `<td>${step[0]}</td><td style="font-size:12px;color:#666">${step[1]}</td>
+      ${['breathing','physical','both','none'].map(m =>
+        `<td style="text-align:center"><select class="flow-sel" data-step="${i}" data-mode="${m}" onchange="updateFlowStatus()" style="padding:3px;border:1px solid #ddd;border-radius:4px;font-size:12px">
+          <option value="">—</option><option value="pass">✓ Pass</option><option value="fail">✗ Fail</option><option value="na">N/A</option>
+        </select></td>`
+      ).join('')}`;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateFlowStatus() {
+  const sels = document.querySelectorAll('.flow-sel');
+  const filled = [...sels].filter(s => s.value !== '');
+  const failed = [...sels].filter(s => s.value === 'fail');
+  if (!filled.length) return;
+  updatePhaseCard(3, failed.length === 0 ? 'PASS' : 'PARTIAL');
+}
+
+function allPass() {
+  document.querySelectorAll('.flow-sel').forEach(s => s.value = 'pass');
+  updatePhaseCard(3, 'PASS');
+}
+function clearFlow() {
+  document.querySelectorAll('.flow-sel').forEach(s => s.value = '');
+  updatePhaseCard(3, null);
+}
+
+// ─── PHASE 4: DATA STORAGE ───────────────────────────────────────────────────
+function updateStorage() {
+  const total = parseInt(document.getElementById('db-total').value) || 0;
+  const stored = parseInt(document.getElementById('db-stored').value) || 0;
+  const fieldsTotal = parseInt(document.getElementById('db-fields-total').value) || 0;
+  const fieldsPass = parseInt(document.getElementById('db-fields-pass').value) || 0;
+  const nulls = parseInt(document.getElementById('db-nulls').value) || 0;
+
+  const storageRate = total > 0 ? (stored / total * 100) : 0;
+  const fieldAcc = fieldsTotal > 0 ? (fieldsPass / fieldsTotal * 100) : 0;
+  const specPass = storageRate >= 95 && nulls === 0 && fieldAcc >= 95;
+
+  document.getElementById('storage-stats').style.display = 'grid';
+  setStatBox('st-comp-v', storageRate.toFixed(1) + '%', 'st-comp', storageRate >= 95);
+  setStatBox('st-acc-v', fieldAcc.toFixed(1) + '%', 'st-acc', fieldAcc >= 95);
+  setStatBox('st-null-v', nulls + ' IDs', 'st-null', nulls === 0);
+  setStatBox('st-verdict-v', specPass ? 'PASS' : 'FAIL', 'st-verdict', specPass);
+
+  updatePhaseCard(4, specPass ? 'PASS' : (storageRate >= 90 ? 'PARTIAL' : 'FAIL'));
+}
+
+function updateSessionOutcomes() {
+  const raw = document.getElementById('session-data').value.trim();
+  if (!raw) return;
+
+  const sessions = raw.split('\n').map(line => {
+    const parts = line.split(',').map(s => s.trim());
+    return { init: parseInt(parts[0]), final: parseInt(parts[1]), type: parts[2] || 'none' };
+  }).filter(s => !isNaN(s.init) && !isNaN(s.final));
+
+  // Scatter
+  const types = ['breathing', 'physical', 'both', 'none'];
+  const typeColors = [TEAL, GREEN, PURPLE, AMBER];
+
+  destroyChart('pain-scatter');
+  charts['pain-scatter'] = new Chart(document.getElementById('chart-pain-scatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        ...types.map((t, ti) => ({
+          label: t.charAt(0).toUpperCase() + t.slice(1),
+          data: sessions.filter(s => s.type === t).map(s => ({ x: s.init, y: s.final })),
+          backgroundColor: typeColors[ti] + '88',
+          borderColor: typeColors[ti],
+          pointRadius: 7,
+        })),
+        { label: 'No change line', data: [{x:1,y:1},{x:10,y:10}], type: 'line', borderColor: '#ccc', borderDash: [4,4], pointRadius: 0, borderWidth: 1.5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.x} → ${ctx.raw.y}` } } },
+      scales: {
+        x: { min: 0, max: 11, title: { display: true, text: 'Initial Pain (1–10)' } },
+        y: { min: 0, max: 11, title: { display: true, text: 'Final Pain (1–10)' } }
+      }
+    }
+  });
+
+  // Success rate by type
+  const successByType = types.map(t => {
+    const s = sessions.filter(s => s.type === t);
+    return s.length ? s.filter(s => s.final < s.init).length / s.length * 100 : 0;
+  });
+
+  destroyChart('exercise-success');
+  charts['exercise-success'] = new Chart(document.getElementById('chart-exercise-success'), {
+    type: 'bar',
+    data: {
+      labels: ['Breathing', 'Physical', 'Both', 'None'],
+      datasets: [{
+        label: 'Success Rate (%)',
+        data: successByType,
+        backgroundColor: successByType.map(v => v >= 50 ? GREEN_LT : AMBER_LT),
+        borderColor: successByType.map(v => v >= 50 ? GREEN : AMBER),
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, title: { display: true, text: 'Success Rate (%)' } }
+      }
+    }
+  });
+}
+
+// ─── PHASE 5: INTEGRATION ────────────────────────────────────────────────────
+function updateIntegration() {
+  const tests = [
+    { id: '51', minPass: 1 },
+    { id: '52', minPass: 1 },
+    { id: '53', minPass: 1 },
+  ];
+  let allPass = true;
+  tests.forEach(t => {
+    const trials = parseInt(document.getElementById(`int-${t.id}-trials`).value) || 0;
+    const pass = parseInt(document.getElementById(`int-${t.id}-pass`).value) || 0;
+    const rate = trials > 0 ? pass / trials : 0;
+    const ok = rate >= 1.0;
+    if (!ok) allPass = false;
+    document.getElementById(`int-${t.id}-result`).innerHTML =
+      `<span class="badge ${ok ? 'badge-pass' : (rate > 0 ? 'badge-partial' : 'badge-fail')}">${ok ? 'PASS' : (rate > 0 ? 'PARTIAL' : 'FAIL')} (${pass}/${trials})</span>`;
+  });
+  updatePhaseCard(5, allPass ? 'PASS' : 'PARTIAL');
+}
+
+// ─── SPEC ALIGNMENT ──────────────────────────────────────────────────────────
+function updateSpecAlignment() {
+  const boxes = document.querySelectorAll('#panel-6 input[type=checkbox]');
+  const count = [...boxes].filter(b => b.checked).length;
+  document.getElementById('align-count').textContent = `${count} / ${boxes.length}`;
+}
+
+// ─── Phase card update ───────────────────────────────────────────────────────
+function updatePhaseCard(n, status) {
+  phaseResults[n] = status;
+  const card = document.getElementById(`card-p${n}`);
+  const result = document.getElementById(`result-p${n}`);
+  card.className = 'summary-card';
+  if (status === 'PASS')    { card.classList.add('pass');    result.textContent = 'PASS'; }
+  else if (status === 'FAIL')    { card.classList.add('fail');    result.textContent = 'FAIL'; }
+  else if (status === 'PARTIAL') { card.classList.add('partial'); result.textContent = 'PART'; }
+  else { card.classList.add('pending-card'); result.textContent = '—'; }
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+buildFlowChecklist();
+
+// Load example data on start so charts are visible
+window.addEventListener('load', () => {
+  updateThermal();
+  updateSessionTiming();
+  updateBLELatency();
+  updateBLECommands();
+  updatePainLatency();
+  updateStorage();
+  updateSessionOutcomes();
+  updateIntegration();
+});
+</script>
+</body>
+</html>

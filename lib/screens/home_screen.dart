@@ -13,6 +13,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:provider/provider.dart';
 import '../bluetooth/ble_manager.dart';
 import '../bluetooth/ble_constants.dart';
+import 'history_screen.dart';
 import 'pain_input_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -23,6 +24,17 @@ class HomeScreen extends StatelessWidget {
     final ble = context.watch<BleManager>();
 
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Stack(
           children: [

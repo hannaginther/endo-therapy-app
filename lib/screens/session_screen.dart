@@ -38,10 +38,12 @@ class _SessionScreenState extends State<SessionScreen> {
   Timer? _timer;
   Timer? _keepaliveTimer;
   late BleManager _ble;
+  DateTime? _startedAt;
 
 
   void _startSession() {
     final ble = _ble;
+    _startedAt = DateTime.now();
 
     // Send command to hardware to start session
     ble.sendCommand(BleCommands.bothOn); // For prototype, just turn on both
@@ -58,7 +60,7 @@ class _SessionScreenState extends State<SessionScreen> {
     // Tick every second
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining <= 0) {
-        _endSession();
+        _endSession(endedEarly: false);
       } else {
         setState(() {
           _secondsRemaining--;
@@ -67,7 +69,7 @@ class _SessionScreenState extends State<SessionScreen> {
     });
   }
 
-  void _endSession() {
+  void _endSession({bool endedEarly = false}) {
     _ble.incrementSessionCount(); // Count completed sessions, not started ones
     _timer?.cancel();
     _keepaliveTimer?.cancel();
@@ -79,10 +81,12 @@ class _SessionScreenState extends State<SessionScreen> {
     if (ble.sessionCount >= BleSessionLimits.maxSessionsPerUse) {
       ble.startCooldown();
     }
-  
+
+    final actualDurationSeconds = BleSessionLimits.sessionDurationSeconds - _secondsRemaining;
+    final safetyEvent = _ble.safetyAlert;
+
     setState(() => _sessionEnded = true);
-  
-  
+
     // Navigate to EndScreen after short delay to show session ended state
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -91,6 +95,11 @@ class _SessionScreenState extends State<SessionScreen> {
         builder: (_) => EndScreen(
           initialPain: widget.initialPain,
           sessionNumber: widget.sessionNumber,
+          exerciseType: widget.exerciseType,
+          startedAt: _startedAt ?? DateTime.now(),
+          actualDurationSeconds: actualDurationSeconds,
+          endedEarly: endedEarly,
+          safetyEvent: safetyEvent,
         ),
       ),
     );
@@ -145,7 +154,7 @@ class _SessionScreenState extends State<SessionScreen> {
                   )
                 else
                   OutlinedButton(
-                    onPressed: _endSession,
+                    onPressed: () => _endSession(endedEarly: true),
                     style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                     child: const Text('End Session Early'),
                   ),
@@ -202,8 +211,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
   
     void _handleSafetyShutoff(String alert) {
-      _timer?.cancel();
-      _keepaliveTimer?.cancel();
+      _endSession(endedEarly: false);
       if (!mounted) return;
       // Show alert dialog to user
 
@@ -236,8 +244,7 @@ class _SessionScreenState extends State<SessionScreen> {
             TextButton(
               onPressed: () {
                 _ble.clearSafetyAlert();
-                // Pop back to home screen
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                Navigator.of(context).pop(); // Dismiss dialog; user proceeds to EndScreen to save record
               },
               child: const Text('OK'),
             ),
