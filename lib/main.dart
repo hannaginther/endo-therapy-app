@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'bluetooth/ble_manager.dart';
 import 'providers/session_history_provider.dart';
 import 'screens/home_screen.dart';
+import 'bluetooth/ble_constants.dart';
+import 'utils/event_log.dart';
 
 void main(){
   runApp(
@@ -29,6 +31,9 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SessionHistoryProvider>().init();
+      EventLog.instance.log(
+        'App launched. kDebugSkipBle=$kDebugSkipBle. ShortTimers=${BleSessionLimits.kDebugShortTimers}',
+      );
     });
   }
 

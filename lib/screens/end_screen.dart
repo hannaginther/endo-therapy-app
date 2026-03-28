@@ -12,6 +12,7 @@ import '../data/models/session_record.dart';
 import '../providers/session_history_provider.dart';
 import 'exercise_selection_screen.dart';
 import 'session_complete_screen.dart';
+import '../utils/event_log.dart';
 
 class EndScreen extends StatefulWidget {
   final int initialPain;
@@ -74,6 +75,7 @@ class _EndScreenState extends State<EndScreen> {
       sessionNumberInCycle: widget.sessionNumber,
     );
     await context.read<SessionHistoryProvider>().saveSession(record);
+    EventLog.instance.log('Final pain submitted: $_finalPain. Saved: ${record.wasSuccessful}');
 
     if (!context.mounted) return;
 

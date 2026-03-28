@@ -35,12 +35,31 @@ unsigned long lastCommandTime = 0;
 const unsigned long BLE_TIMEOUT_MS = 660000UL; // 11 minutes
 
 
+// ── Timestamp logger ───────────────────────────────────────────────────────
+// Prefixes every message with the Arduino uptime in milliseconds so timing
+// intervals can be read directly from the Serial Monitor without a stopwatch.
+
+void logEvent(const char* msg) {
+  Serial.print("[");
+  Serial.print(millis());
+  Serial.print(" ms] ");
+  Serial.println(msg);
+}
+
+void logEvent(const String& msg) {
+  Serial.print("[");
+  Serial.print(millis());
+  Serial.print(" ms] ");
+  Serial.println(msg);
+}
+
+
 // ── Setup ──────────────────────────────────────────────────────────────────
 
 void setup() {
   Serial.begin(115200);
   delay(1500); // Wait for native USB-CDC to enumerate on Nano ESP32
-  Serial.println("Endosync booting...");
+  logEvent("Endosync booting...");
 
   // Pin modes
   pinMode(HEAT_PIN,   OUTPUT);
@@ -54,29 +73,29 @@ void setup() {
 
   // MCP9808 temperature sensor
   if (!tempSensor.begin(0x18)) {
-    Serial.println("WARNING: MCP9808 not found. Temperature safety disabled.");
+    logEvent("WARNING: MCP9808 not found. Temperature safety disabled.");
     tempSensorOk = false;
   } else {
     tempSensor.setResolution(3);
     tempSensorOk = true;
-    Serial.println("MCP9808 ready.");
+    logEvent("MCP9808 ready.");
   }
 
   // DRV2605L haptic driver
   if (!hapticDriver.begin()) {
-    Serial.println("WARNING: DRV2605 not found. Vibration disabled.");
+    logEvent("WARNING: DRV2605 not found. Vibration disabled.");
     hapticDriverOk = false;
   } else {
     hapticDriver.selectLibrary(1);
     hapticDriver.setMode(DRV2605_MODE_INTTRIG);
     hapticDriverOk = true;
-    Serial.println("DRV2605L ready.");
+    logEvent("DRV2605L ready.");
   }
 
   // Initialise BLE stack but do NOT advertise yet —
   // advertising starts only when the switch is turned ON.
   if (!BLE.begin()) {
-    Serial.println("ERROR: BLE failed to start.");
+    logEvent("ERROR: BLE failed to start.");
     while (1);
   }
 
@@ -87,7 +106,7 @@ void setup() {
   BLE.addService(endosyncService);
   // BLE.advertise() is NOT called here
 
-  Serial.println("BLE ready. Waiting for switch...");
+  logEvent("BLE ready. Waiting for switch...");
 }
 
 
@@ -104,8 +123,7 @@ void safetyShutoff(String reason) {
   String alert = "SAFETY:" + reason;
   txCharacteristic.writeValue(alert);
 
-  Serial.print("SAFETY SHUTOFF: ");
-  Serial.println(reason);
+  logEvent("SAFETY SHUTOFF: " + reason);
 }
 
 
@@ -115,12 +133,11 @@ void handleCommand(String command) {
   // Always allow READ_TEMP so BLE keepalive pings work.
   // Block all other therapy commands if switch is off.
   if (!deviceActive && command != "READ_TEMP") {
-    Serial.println("Command ignored — device inactive (switch off).");
+    logEvent("Command ignored — device inactive (switch off).");
     return;
   }
 
-  Serial.print("Received: ");
-  Serial.println(command);
+  logEvent("Received: " + command);
 
   if (command == "HEAT_ON") {
     digitalWrite(HEAT_PIN, HIGH);
@@ -169,12 +186,14 @@ void handleCommand(String command) {
       float temp = tempSensor.readTempC();
       String response = "TEMP:" + String(temp, 1);
       txCharacteristic.writeValue(response);
+      logEvent(response);
     } else {
       txCharacteristic.writeValue("TEMP:ERROR");
+      logEvent("TEMP:ERROR");
     }
 
   } else {
-    Serial.println("Unknown command.");
+    logEvent("Unknown command.");
   }
 }
 
@@ -191,7 +210,7 @@ void loop() {
     deviceActive = true;
     digitalWrite(LED_PIN, HIGH);
     BLE.advertise();
-    Serial.println("Device ON — BLE advertising.");
+    logEvent("Device ON — BLE advertising.");
   }
 
   if (!switchOn && deviceActive) {
@@ -203,7 +222,7 @@ void loop() {
     heatActive    = false;
     vibrateActive = false;
     BLE.stopAdvertise();
-    Serial.println("Device OFF — BLE stopped.");
+    logEvent("Device OFF — BLE stopped.");
   }
 
   // If device is off, nothing else to do
@@ -212,12 +231,19 @@ void loop() {
     return;
   }
 
+  // ── Standalone temperature print (no BLE connection) ─────────────────
+  static unsigned long lastStandaloneTemp = 0;
+  if (tempSensorOk && millis() - lastStandaloneTemp >= 2000) {
+    lastStandaloneTemp = millis();
+    float temp = tempSensor.readTempC();
+    logEvent("Temp: " + String(temp, 1));
+  }
+
   // ── BLE central connection ────────────────────────────────────────────
   BLEDevice central = BLE.central();
 
   if (central) {
-    Serial.print("Connected to: ");
-    Serial.println(central.address());
+    logEvent(String("Connected to: ") + central.address());
     lastCommandTime = millis();
 
     while (central.connected()) {
@@ -233,7 +259,7 @@ void loop() {
         heatActive    = false;
         vibrateActive = false;
         txCharacteristic.writeValue("DEVICE_OFF");
-        Serial.println("Device OFF mid-session — outputs cut.");
+        logEvent("Device OFF mid-session — outputs cut.");
         break; // Exit connected loop
       }
 
@@ -253,8 +279,7 @@ void loop() {
 
         if (tempSensorOk) {
           float temp = tempSensor.readTempC();
-          Serial.print("Temp: ");
-          Serial.println(temp);
+          logEvent("Temp: " + String(temp, 1));
 
           if (temp >= MAX_TEMP && heatActive) {
             safetyShutoff("TEMP_HIGH");
@@ -282,15 +307,15 @@ void loop() {
     }
 
     // ── Central disconnected ──
-    Serial.println("Disconnected.");
+    logEvent("Disconnected.");
     safetyShutoff("BLE_LOST");
 
     // Only resume advertising if switch is still on
     if (deviceActive) {
       BLE.advertise();
-      Serial.println("Resuming BLE advertising...");
+      logEvent("Resuming BLE advertising...");
     } else {
-      Serial.println("Switch off — not resuming advertising.");
+      logEvent("Switch off — not resuming advertising.");
     }
   }
 }

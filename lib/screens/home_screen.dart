@@ -15,6 +15,8 @@ import '../bluetooth/ble_manager.dart';
 import '../bluetooth/ble_constants.dart';
 import 'history_screen.dart';
 import 'pain_input_screen.dart';
+import 'package:flutter/services.dart';
+import '../utils/event_log.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -35,6 +37,14 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+      floatingActionButton: kDebugSkipBle
+          ? FloatingActionButton(
+              mini: true,
+              onPressed: () => _showEventLogDialog(context),
+              tooltip: 'Event Log',
+              child: const Icon(Icons.receipt_long),
+            )
+          : null,
       body: SafeArea(
         child: Stack(
           children: [
@@ -46,6 +56,63 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEventLogDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final log = EventLog.instance;
+          return AlertDialog(
+            title: const Text('Event Log'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 400,
+              child: log.entries.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No events logged yet.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: log.entries.length,
+                      itemBuilder: (_, i) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          log.entries[i],
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  log.clear();
+                  setDialogState(() {});
+                },
+                child: const Text('Clear Log'),
+              ),
+              TextButton(
+                onPressed: () => Clipboard.setData(
+                  ClipboardData(text: log.dump()),
+                ),
+                child: const Text('Copy to Clipboard'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

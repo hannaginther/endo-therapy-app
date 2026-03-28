@@ -11,6 +11,7 @@ class SessionHistoryProvider extends ChangeNotifier {
 
   List<SessionRecord> get sessions => List.unmodifiable(_sessions);
   bool get isLoading => _isLoading;
+  SessionRepository get repository => _repository;
 
   Future<void> init() async {
     await _repository.init();

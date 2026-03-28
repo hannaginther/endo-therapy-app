@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../data/models/session_record.dart';
@@ -19,7 +20,7 @@ class HistoryScreen extends StatelessWidget {
         child: Column(
           children: [
             Expanded(child: _buildBody(provider)),
-            _ClearAllButton(),
+            _HistoryActions(),
           ],
         ),
       ),
@@ -157,17 +158,81 @@ class _SessionCard extends StatelessWidget {
   }
 }
 
-class _ClearAllButton extends StatelessWidget {
+class _HistoryActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: TextButton(
-        onPressed: () => _confirmClear(context),
-        style: TextButton.styleFrom(foregroundColor: Colors.red),
-        child: const Text('Clear all data'),
+      padding: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () => _exportDashboard(context),
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Export for Dashboard'),
+          ),
+          TextButton(
+            onPressed: () => _confirmClear(context),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear all data'),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _exportDashboard(BuildContext context) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Exporting…'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final filePath = await context
+          .read<SessionHistoryProvider>()
+          .repository
+          .exportDashboardJson();
+
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Export ready'),
+          content: Text(
+            'File saved to:\n\n$filePath\n\n'
+            'On iPhone: open the Files app → On My iPhone → [app name] '
+            'to find the file, then share it to your Mac.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: filePath));
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Copy path'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
   }
 
   void _confirmClear(BuildContext context) {

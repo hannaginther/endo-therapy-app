@@ -12,10 +12,20 @@ class BleConstants {
   static const String rxCharacteristicUuid = '6c88fae1-9bfb-4a9e-8f30-1d5a7c8b9f0c';
 }
 
-class BleSessionLimits{
-  static const int sessionDurationSeconds = 600; // 10 minutes
+class BleSessionLimits {
+  // ─────────────────────────────────────────────
+  // DEBUG: shorten all timers for manual testing.
+  // 30 s session | 60 s cooldown | 5 s min-count
+  // SET TO FALSE BEFORE REAL-USE TESTING.
+  // ─────────────────────────────────────────────
+  static const bool kDebugShortTimers = true;
+  // Set to false before any real-use testing or submission
+
+  static int get sessionDurationSeconds     => kDebugShortTimers ? 30   : 600;
+  static int get cooldownDurationSeconds    => kDebugShortTimers ? 60   : 1800;
+  static int get minSessionDurationForCount => kDebugShortTimers ? 5    : 300;
+
   static const int maxSessionsPerUse = 2; // Max sessions before recommending a break or consultation
-  static const int cooldownDurationSeconds = 1800; // 30 minutes cooldown after max sessions reached
 }
 
 class BleCommands {

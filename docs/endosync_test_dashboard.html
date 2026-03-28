@@ -643,10 +643,17 @@
             <td><span class="badge badge-pass">LOW</span></td>
             <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
           </tr>
+          <tr>
+            <td>Safety events listed: TEMP_HIGH, BLE_TIMEOUT, BLE_LOST (spec / CLAUDE.md)</td>
+            <td>session_screen.dart also handles SAFETY:COMPONENT_FAIL (hardware fault)</td>
+            <td>Add COMPONENT_FAIL to spec, CLAUDE.md safety events table, and test protocol</td>
+            <td><span class="badge badge-partial">MED</span></td>
+            <td><input type="checkbox" onchange="updateSpecAlignment()"></td>
+          </tr>
         </tbody>
       </table>
       <div id="alignment-summary" style="margin-top:14px;font-size:13px;padding:10px;background:var(--gray-lt);border-radius:6px">
-        Resolved: <strong id="align-count">0 / 5</strong>
+        Resolved: <strong id="align-count">0 / 6</strong>
       </div>
     </div>
 
@@ -1005,6 +1012,7 @@ const flowSteps = [
   ['Select exercise mode, tap Start', 'Session screen; countdown at 10:00'],
   ['Tap Start Session', 'BOTH_ON sent; device active'],
   ['Wait for expiry OR tap End Early', 'ALL_OFF sent; EndScreen shown'],
+  ['End session early within first 5 min (< 5 min threshold)', 'EndScreen shown; session NOT counted toward 2-session limit — short sessions below minSessionDurationForCount (5 min / 5 s debug) are excluded'],
   ['Set final pain lower', 'Success screen shows initial/final pain'],
   ['Set final pain same/higher (session 1)', '"Try Again?" dialog shown'],
   ['Set final pain same/higher (session 2)', 'Session limit dialog; no retry'],
@@ -1185,6 +1193,7 @@ window.addEventListener('load', () => {
   updateStorage();
   updateSessionOutcomes();
   updateIntegration();
+  updateSpecAlignment();
 });
 </script>
 </body>

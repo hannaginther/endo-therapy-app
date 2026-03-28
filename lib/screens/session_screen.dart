@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../bluetooth/ble_manager.dart';
 import '../bluetooth/ble_constants.dart';
 import 'end_screen.dart';
+import '../utils/event_log.dart';
 
 class SessionScreen extends StatefulWidget {
   final int initialPain;
@@ -31,7 +32,7 @@ class SessionScreen extends StatefulWidget {
 }
 
 class _SessionScreenState extends State<SessionScreen> {
-  static const int sessionDuration = BleSessionLimits.sessionDurationSeconds;
+  static final int sessionDuration = BleSessionLimits.sessionDurationSeconds;
   int _secondsRemaining = sessionDuration;
   bool _sessionStarted = false;
   bool _sessionEnded = false;
@@ -44,6 +45,7 @@ class _SessionScreenState extends State<SessionScreen> {
   void _startSession() {
     final ble = _ble;
     _startedAt = DateTime.now();
+    EventLog.instance.log('Session started. Exercise: ${widget.exerciseType}');
 
     // Send command to hardware to start session
     ble.sendCommand(BleCommands.bothOn); // For prototype, just turn on both
@@ -54,7 +56,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
     // Keepalive: send READ_TEMP every 25 seconds so the Arduino's BLE timeout doesn't fire
     _keepaliveTimer = Timer.periodic(const Duration(seconds: 25), (_) {
-      ble.sendCommand(BleCommands.readTemp);
+      _sendReadTemp();
     });
 
     // Tick every second
@@ -69,8 +71,12 @@ class _SessionScreenState extends State<SessionScreen> {
     });
   }
 
+  void _sendReadTemp() {
+    _ble.sendCommand(BleCommands.readTemp);
+    EventLog.instance.log('READ_TEMP ping sent');
+  }
+
   void _endSession({bool endedEarly = false}) {
-    _ble.incrementSessionCount(); // Count completed sessions, not started ones
     _timer?.cancel();
     _keepaliveTimer?.cancel();
     if (!mounted) return;
@@ -78,11 +84,16 @@ class _SessionScreenState extends State<SessionScreen> {
     final ble = _ble;
     ble.sendCommand(BleCommands.allOff); // Turn off hardware at end of session
 
+    final actualDurationSeconds = BleSessionLimits.sessionDurationSeconds - _secondsRemaining;
+    EventLog.instance.log('Session ended. Duration: ${actualDurationSeconds}s. Early: $endedEarly');
+    if (actualDurationSeconds >= BleSessionLimits.minSessionDurationForCount) {
+      _ble.incrementSessionCount(); // Only count sessions >= 5 min
+    }
+
     if (ble.sessionCount >= BleSessionLimits.maxSessionsPerUse) {
       ble.startCooldown();
     }
 
-    final actualDurationSeconds = BleSessionLimits.sessionDurationSeconds - _secondsRemaining;
     final safetyEvent = _ble.safetyAlert;
 
     setState(() => _sessionEnded = true);
@@ -211,6 +222,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
   
     void _handleSafetyShutoff(String alert) {
+      EventLog.instance.log('Safety shutoff triggered: ${_ble.safetyAlert}');
       _endSession(endedEarly: false);
       if (!mounted) return;
       // Show alert dialog to user

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'ble_constants.dart';
+import '../utils/event_log.dart';
 
 class BleManager extends ChangeNotifier {
 // State variables
@@ -225,17 +226,20 @@ class BleManager extends ChangeNotifier {
 
   void incrementSessionCount() {
     _sessionCount++;
+    EventLog.instance.log('Session count incremented to $_sessionCount');
     notifyListeners();
   }
 
   void resetSessionCount() {
     _sessionCount = 0;
+    EventLog.instance.log('Session count reset. Cooldown cleared.');
     notifyListeners();
   }
 
   void startCooldown() {
     _inCooldown = true;
     _cooldownSecondsRemaining = BleSessionLimits.cooldownDurationSeconds;
+    EventLog.instance.log('Cooldown started. ${BleSessionLimits.cooldownDurationSeconds}s');
     notifyListeners();
 
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
