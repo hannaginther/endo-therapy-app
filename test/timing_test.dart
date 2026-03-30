@@ -234,6 +234,11 @@ void main() {
       expect(ble.sessionCount, 1);
       expect(find.text('How is your pain now?'), findsOneWidget);
 
+      // Flush the old NavigatorState (which still has EndScreen on the stack)
+      // so the next pumpWidget starts with a clean navigation history.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
       // ── Session 2 ──
       // Replace the widget tree with a fresh SessionScreen that shares the same
       // BleManager so sessionCount = 1 carries over.
@@ -260,10 +265,21 @@ void main() {
       );
 
       // ── HomeScreen reflects cooldown state ──
+      // Flush Navigator state (still has Session 2's EndScreen on the stack)
+      // so HomeScreen is rendered as the fresh root, not hidden behind EndScreen.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
       await tester.pumpWidget(_homeApp(ble, history));
       await tester.pump();
 
       expect(find.text('Cooldown Period'), findsOneWidget);
+
+      // Drain the cooldown timer so no periodic timers remain when the test
+      // exits. Flutter's test framework fails if timers are still pending.
+      // Pumping cooldownDurationSeconds + 1 fires the timer's self-cancelling
+      // clearing tick, leaving nothing pending.
+      await tester.pump(Duration(seconds: BleSessionLimits.cooldownDurationSeconds + 1));
     },
   );
 

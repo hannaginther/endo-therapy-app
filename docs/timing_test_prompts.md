@@ -62,7 +62,9 @@ Create the file `test/timing_test.dart` with the following test cases. Use
 Test 1 — Session timer expires and navigates to EndScreen:
   - Build the app with kDebugSkipBle = true
   - Navigate through to SessionScreen (simulate pain rating + exercise selection)
-  - Call tester.pump(Duration(seconds: BleSessionLimits.sessionDurationSeconds))
+  // The session timer fires on the tick AFTER _secondsRemaining reaches 0,
+  // so we need sessionDurationSeconds + 1 ticks to trigger _endSession().
+  - Call tester.pump(Duration(seconds: BleSessionLimits.sessionDurationSeconds + 1))
   - Call tester.pumpAndSettle()
   - Assert that EndScreen is present in the widget tree
 
@@ -81,15 +83,21 @@ Test 3 — Short session (under minSessionDurationForCount) does not consume a s
   - Assert sessionCount on BleManager is still 0 (slot was not consumed)
 
 Test 4 — Two full sessions trigger cooldown:
-  - Complete session 1: pump full sessionDurationSeconds, submit EndScreen
+  // Same off-by-one as Test 1: need sessionDurationSeconds + 1 ticks per session.
+  - Complete session 1: pump full sessionDurationSeconds + 1, submit EndScreen
   - Complete session 2: same
   - Assert HomeScreen shows a cooldown message or the start button is disabled
   - Assert BleManager.inCooldown == true
 
 Test 5 — Cooldown expires and start button re-enables:
   - Reach cooldown state (from Test 4 setup)
-  - Pump cooldownDurationSeconds
-  - pumpAndSettle()
+  // The cooldown timer clears on the tick AFTER remaining hits 0, same
+  // off-by-one as the session timer.
+  - pump(Duration(seconds: BleSessionLimits.cooldownDurationSeconds + 1))
+  // One extra pump to flush the notifyListeners() rebuild
+  - pump()
+  // Do NOT use pumpAndSettle here — the cooldown timer is still active during
+  // the pump and would prevent settlement for the full cooldown duration.
   - Assert BleManager.inCooldown == false
   - Assert the start/scan button on HomeScreen is enabled
 

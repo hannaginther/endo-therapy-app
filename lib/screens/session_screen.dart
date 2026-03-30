@@ -32,8 +32,7 @@ class SessionScreen extends StatefulWidget {
 }
 
 class _SessionScreenState extends State<SessionScreen> {
-  static final int sessionDuration = BleSessionLimits.sessionDurationSeconds;
-  int _secondsRemaining = sessionDuration;
+  late int _secondsRemaining;
   bool _sessionStarted = false;
   bool _sessionEnded = false;
   Timer? _timer;
@@ -77,6 +76,8 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   void _endSession({bool endedEarly = false}) {
+    if (_sessionEnded) return;
+    _sessionEnded = true;
     _timer?.cancel();
     _keepaliveTimer?.cancel();
     if (!mounted) return;
@@ -95,8 +96,6 @@ class _SessionScreenState extends State<SessionScreen> {
     }
 
     final safetyEvent = _ble.safetyAlert;
-
-    setState(() => _sessionEnded = true);
 
     // Navigate to EndScreen after short delay to show session ended state
     if (!mounted) return;
@@ -268,6 +267,7 @@ class _SessionScreenState extends State<SessionScreen> {
   @override
   void initState() {
     super.initState();
+    _secondsRemaining = BleSessionLimits.sessionDurationSeconds;
     _ble = context.read<BleManager>();
     // Listen for safety alerts from BleManager
     WidgetsBinding.instance.addPostFrameCallback((_) {

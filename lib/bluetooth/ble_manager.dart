@@ -246,7 +246,7 @@ class BleManager extends ChangeNotifier {
       if (_cooldownSecondsRemaining <= 0) {
         _cooldownTimer?.cancel();
         _inCooldown = false;
-        _sessionCount = 0;
+        resetSessionCount();
         notifyListeners();
       } else {
         _cooldownSecondsRemaining--;
