@@ -1,8 +1,8 @@
 /* Constants for Bluetooth
 */
 
-// Debug mode for testing
-const bool kDebugSkipBle = true;
+// WARNING: Set to true only for local UI testing. Must be false before pushing to shared/production branch.
+const bool kDebugSkipBle = false;
 
 
 class BleConstants {
@@ -18,8 +18,8 @@ class BleSessionLimits {
   // 30 s session | 60 s cooldown | 5 s min-count
   // SET TO FALSE BEFORE REAL-USE TESTING.
   // ─────────────────────────────────────────────
-  static const bool kDebugShortTimers = true;
-  // Set to false before any real-use testing or submission
+  // WARNING: Set to true only for local UI testing. Must be false before pushing to shared/production branch.
+  static const bool kDebugShortTimers = false;
 
   static int get sessionDurationSeconds     => kDebugShortTimers ? 30   : 600;
   static int get cooldownDurationSeconds    => kDebugShortTimers ? 60   : 1800;

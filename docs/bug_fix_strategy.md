@@ -2,7 +2,7 @@
 
 This document catalogues every bug found across the test suite and source code,
 explains the root cause of each one, and gives a paste-ready prompt your
-groupmate can hand directly to Claude Code to fix it.
+groupmate can use to fix it.
 
 Bugs are grouped by severity: **Test-breaking** (will cause `flutter test` to
 fail or hang), **Logic** (code runs but produces wrong behaviour), and
@@ -34,7 +34,7 @@ same event loop turn. The `_sessionEnded` flag is set to `true` via `setState()`
   cooldown timers, causing the cooldown countdown to race
 - `Navigator.pushReplacement` is called twice, which throws a navigation error
 
-**The fix (paste this prompt into Claude Code):**
+**The fix:**
 
 ```
 In lib/screens/session_screen.dart, add a re-entry guard to _endSession so it
@@ -87,7 +87,7 @@ _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
 - Manual test logs (via the debug FAB) will appear to show the cooldown starting
   but never ending, making post-session analysis confusing
 
-**The fix (paste this prompt into Claude Code):**
+**The fix:**
 
 ```
 In lib/bluetooth/ble_manager.dart, inside the startCooldown() method, fix the
@@ -138,7 +138,7 @@ However:
 **Effect:** Currently no runtime error, but it's a trap that will cause subtle
 timer bugs if the timer constants are ever made dynamic.
 
-**The fix (paste this prompt into Claude Code):**
+**The fix:**
 
 ```
 In lib/screens/session_screen.dart, remove the static field sessionDuration and
@@ -187,7 +187,7 @@ new test case) they would reproduce the bug.
 **Effect:** Test 1 would fail with a "widget not found" error, misleadingly
 suggesting the navigation never happened.
 
-**The fix (paste this prompt into Claude Code):**
+**The fix:**
 
 ```
 In docs/timing_test_prompts.md, find the Prompt 2 section and fix the pump
@@ -239,7 +239,7 @@ await tester.pump(); // process the final notifyListeners() → widget rebuild
 **Effect:** Under normal conditions the test passes; under tight CI timeouts or
 with longer cooldown values it hangs or times out.
 
-**The fix (paste this prompt into Claude Code):**
+**The fix:**
 
 ```
 In docs/timing_test_prompts.md, find the Prompt 2 / Test 5 section and fix the

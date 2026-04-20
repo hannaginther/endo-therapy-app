@@ -7,6 +7,46 @@ import 'package:sqflite/sqflite.dart';
 import '../bluetooth/ble_constants.dart';
 import 'models/session_record.dart';
 
+Map<String, dynamic> buildDashboardExportPayload(
+  List<SessionRecord> sessions, {
+  required DateTime exportedAtUtc,
+}) {
+  final timings = sessions.map((s) => s.actualDurationSeconds).toList();
+  final nullIds = sessions.where((s) => s.id.isEmpty).length;
+  final safetySessions = sessions.where((s) => s.safetyEvent != null).toList();
+  const fieldsPerSession = 11; // all non-nullable columns
+
+  return {
+    'exportedAt': exportedAtUtc.toUtc().toIso8601String(),
+    'testMode': kDebugSkipBle ? 'software_only' : 'hardware',
+    'sessionTimings': timings,
+    'storage': {
+      'sessionsCompleted': sessions.length,
+      'sessionsStored': sessions.length,
+      'fieldsChecked': sessions.length * fieldsPerSession,
+      'fieldsPassed': sessions.length * fieldsPerSession,
+      'nullIdsFound': nullIds,
+    },
+    'safety': {
+      'anySafetyEventOccurred': safetySessions.isNotEmpty,
+      'safetyEventCount': safetySessions.length,
+      'eventTypes': safetySessions.map((s) => s.safetyEvent!).toSet().toList()
+        ..sort(),
+    },
+    'sessions': sessions
+        .map((s) => {
+              'initialPain': s.initialPain,
+              'finalPain': s.finalPain,
+              'exerciseType': s.exerciseType,
+              'durationSeconds': s.actualDurationSeconds,
+              'wasSuccessful': s.wasSuccessful,
+              'endedEarly': s.endedEarly,
+              'safetyEvent': s.safetyEvent,
+            })
+        .toList(),
+  };
+}
+
 class SessionRepository {
   static const _dbName = 'endosync_sessions.db';
   static const _tableName = 'sessions';
@@ -77,37 +117,16 @@ class SessionRepository {
   Future<String> exportDashboardJson() async {
     final rows = await _db!.query(_tableName, orderBy: 'started_at ASC');
     final sessions = rows.map(SessionRecord.fromMap).toList();
-
-    final timings = sessions.map((s) => s.actualDurationSeconds).toList();
-    final nullIds = sessions.where((s) => s.id.isEmpty).length;
-    const fieldsPerSession = 11; // all non-nullable columns
-
-    final payload = {
-      'exportedAt': DateTime.now().toUtc().toIso8601String(),
-      'testMode': kDebugSkipBle ? 'software_only' : 'hardware',
-      'sessionTimings': timings,
-      'storage': {
-        'sessionsCompleted': sessions.length,
-        'sessionsStored': sessions.length,
-        'fieldsChecked': sessions.length * fieldsPerSession,
-        'fieldsPassed': sessions.length * fieldsPerSession,
-        'nullIdsFound': nullIds,
-      },
-      'sessions': sessions.map((s) => {
-        'initialPain': s.initialPain,
-        'finalPain': s.finalPain,
-        'exerciseType': s.exerciseType,
-        'durationSeconds': s.actualDurationSeconds,
-        'wasSuccessful': s.wasSuccessful,
-        'endedEarly': s.endedEarly,
-        'safetyEvent': s.safetyEvent,
-      }).toList(),
-    };
+    final payload = buildDashboardExportPayload(
+      sessions,
+      exportedAtUtc: DateTime.now(),
+    );
 
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = DateTime.now().toUtc().millisecondsSinceEpoch;
     final file = File('${dir.path}/endosync_dashboard_$timestamp.json');
-    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
+    await file
+        .writeAsString(const JsonEncoder.withIndent('  ').convert(payload));
     return file.path;
   }
 

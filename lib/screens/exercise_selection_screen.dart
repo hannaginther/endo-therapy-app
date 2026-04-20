@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'session_screen.dart';
+import '../utils/event_log.dart';
 
 class ExerciseSelectionScreen extends StatefulWidget {
   final int initialPain;
@@ -21,6 +22,13 @@ class ExerciseSelectionScreen extends StatefulWidget {
 
 class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
   String? _selectedExercise; // null until user selects
+  bool _timingLogged = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_timingLogged) { _timingLogged = true; EventLog.instance.log('TIMING: ExerciseSelectionScreen appeared'); }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +90,7 @@ class _ExerciseSelectionScreenState extends State<ExerciseSelectionScreen> {
                 onPressed: _selectedExercise == null
                     ? null
                     : () {
+                        EventLog.instance.log('TIMING: StartSessionTapped');
                         Navigator.push(
                           context,
                           MaterialPageRoute(

@@ -129,7 +129,7 @@ Run `flutter pub get` first, then try again.
 Check that `kDebugShortTimers = true` in `lib/bluetooth/ble_constants.dart`. If it is set to `false`, the fake session timer runs for 600 seconds and the cooldown for 1800 seconds.
 
 **A test was passing before and now fails**
-Check `docs/bug_fix_strategy.md` — it has a ready-made fix prompt for each known bug that you can paste directly into Claude Code.
+Check `docs/bug_fix_strategy.md` — it has a ready-made fix for each known bug.
 
 ---
 

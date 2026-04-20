@@ -1,11 +1,11 @@
-# EndoSync — Claude Context
+# EndoSync — Project Context
 
 ## Project
 Research prototype wearable therapeutic system for endometriosis-related pelvic pain.
 Two-component system: Arduino Nano ESP32 firmware (BLE GATT server) + Flutter iOS app.
 
 ## Firmware
-- **Source:** `lib/arduino/endosync_hardware_v3/endosync_hardware_v3.ino`
+- **Source:** `lib/arduino/endosync_hardware_v4_espressif.ino`
 - **Toolchain:** Arduino IDE (not PlatformIO)
 - **Board:** Arduino Nano ESP32 (ABX00083)
 - **Serial monitor:** Arduino IDE Serial Monitor, 115200 baud

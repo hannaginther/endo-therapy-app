@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'bluetooth/ble_manager.dart';
 import 'providers/session_history_provider.dart';
+import 'debug/fake_ble_manager.dart';
 import 'screens/home_screen.dart';
 import 'bluetooth/ble_constants.dart';
 import 'utils/event_log.dart';
@@ -10,7 +11,7 @@ void main(){
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => BleManager()), // wraps app, all screens can access BleManager
+        ChangeNotifierProvider(create: (_) => kDebugSkipBle ? FakeBleManager() : BleManager()), // wraps app, all screens can access BleManager
         ChangeNotifierProvider(create: (_) => SessionHistoryProvider()),
       ],
       child: const MyApp(),

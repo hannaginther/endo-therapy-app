@@ -52,7 +52,7 @@ class BleManager extends ChangeNotifier {
     _isConnecting = false;
     notifyListeners();
 
-    // On iOS, CoreBluetooth initialises asynchronously and starts in
+    // On iOS, CoreBluetooth initializes asynchronously and starts in
     // CBManagerStateUnknown. Wait up to 3 s for a known state before scanning.
     final adapterState = await FlutterBluePlus.adapterState
         .where((s) => s != BluetoothAdapterState.unknown)

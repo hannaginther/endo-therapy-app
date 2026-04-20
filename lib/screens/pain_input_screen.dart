@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'exercise_selection_screen.dart';
+import '../utils/event_log.dart';
 
 class PainInputScreen extends StatefulWidget {
   const PainInputScreen({super.key});
@@ -15,6 +16,13 @@ class PainInputScreen extends StatefulWidget {
 
 class _PainInputScreenState extends State<PainInputScreen> {
   int _selectedPain = 1;
+  bool _timingLogged = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_timingLogged) { _timingLogged = true; EventLog.instance.log('TIMING: PainInputScreen appeared'); }
+  }
 
   final Map<int, String> _painLabels = {
     1: 'Minimal pain',
@@ -65,6 +73,7 @@ class _PainInputScreenState extends State<PainInputScreen> {
               // Continue button
               ElevatedButton(
                 onPressed: () {
+                  EventLog.instance.log('TIMING: ContinueTapped');
                   Navigator.push(
                     context,
                     MaterialPageRoute(
